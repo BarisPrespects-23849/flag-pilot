@@ -3,6 +3,7 @@ are faked. The rules table comes from the real 570 payloads."""
 
 import copy
 import json
+import subprocess
 
 import pytest
 
@@ -230,6 +231,20 @@ def test_a_failed_push_opens_no_pull_request(world, capsys, monkeypatch):
     assert run(world, apply=True) == cleanup.FAILED
     assert "not confirmed as pushed" in capsys.readouterr().err
     assert world["gh"] == [] and logged()[-1]["action"] == "cleanup_push"
+
+
+def test_a_push_that_only_claims_success_opens_no_pull_request(world, monkeypatch):
+    real = repo._run
+
+    def run(command, cwd, **kwargs):
+        if "push" in command:  # SYNTHETIC: exit code 0, nothing sent
+            return subprocess.CompletedProcess(command, 0, "", "error: RPC failed; HTTP 400")
+        return real(command, cwd, **kwargs)
+
+    monkeypatch.setattr(repo, "_run", run)
+    assert cleanup.cleanup(9, SETTINGS, apply=True, root=world["root"]) == cleanup.FAILED
+    assert world["gh"] == [] and logged()[-1]["action"] == "cleanup_push"
+    assert logged()[-1]["status"].startswith("failed") and "HTTP 400" in logged()[-1]["status"]
 
 
 def test_a_failed_pull_request_is_reported(world, capsys):

@@ -28,8 +28,31 @@ def git(root: Path, *args: str, ok: tuple = (0,)) -> str:
     return _run(["git", *credentials, *args], root, ok=ok).stdout
 
 
-def push(root: Path, branch: str) -> None:
-    git(root, "push", "-u", "origin", branch)
+def push(root: Path, branch: str) -> str:
+    """Push the checked-out `branch` and confirm that origin now has local HEAD.
+
+    The exit code of `git push` is not trusted: only what `ls-remote` reports counts.
+    Returns the pushed commit, or raises RepoError with what git said.
+    """
+    current = git(root, "rev-parse", "--abbrev-ref", "HEAD").strip()
+    if current != branch:
+        raise RepoError(f"'{current}' is checked out, not '{branch}'")
+    head = git(root, "rev-parse", "HEAD").strip()
+    try:
+        result = _run(["git", *_CREDENTIALS, "push", "-u", "origin", branch], root)
+        said = result.stderr
+    except (RepoError, subprocess.SubprocessError) as error:
+        said = str(error)
+    said = " ".join(said.split())[-500:] or "nothing"
+    try:
+        listed = git(root, "ls-remote", "origin", f"refs/heads/{branch}").split()
+    except (RepoError, subprocess.SubprocessError) as error:
+        raise RepoError(f"push not verified: {error}. git push said: {said}")
+    remote = listed[0] if listed else None
+    if remote != head:
+        raise RepoError(f"push failed: origin/{branch} is at {remote[:7] if remote else 'nothing'}, "
+                        f"local HEAD is {head[:7]}. git push said: {said}")
+    return head
 
 
 def gh(root: Path, *args: str, input: str | None = None) -> str:

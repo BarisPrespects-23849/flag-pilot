@@ -1,3 +1,5 @@
+import sys
+
 import pytest
 
 from flagpilot import audit, lifecycle
@@ -10,7 +12,13 @@ def isolate(monkeypatch, tmp_path):
     monkeypatch.setattr(audit, "AUDIT_PATH", tmp_path / "audit.jsonl")
     monkeypatch.setattr(lifecycle, "STATE_PATH", tmp_path / "state.json")
 
-    def no_cli(command, **kwargs):
-        raise AssertionError(f"test tried to run: {command[:3]}")
+    real_run = cli.subprocess.run
 
-    monkeypatch.setattr(cli.subprocess, "run", no_cli)
+    def guarded(command, *args, **kwargs):
+        # Local git and the test interpreter are fine; Flagsmith, GitHub and pushes
+        # through them are not.
+        if command[0] not in ("git", sys.executable):
+            raise AssertionError(f"test tried to run: {command[:3]}")
+        return real_run(command, *args, **kwargs)
+
+    monkeypatch.setattr(cli.subprocess, "run", guarded)

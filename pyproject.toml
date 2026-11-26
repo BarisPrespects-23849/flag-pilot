@@ -26,3 +26,6 @@ dev = ["pytest", "httpx"]
 [tool.pytest.ini_options]
 testpaths = ["tests"]
 pythonpath = ["."]
+markers = [
+    "flag(name): only meaningful while the feature flag exists; `flagpilot cleanup` deletes the file",
+]

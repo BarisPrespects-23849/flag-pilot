@@ -32,6 +32,11 @@ def _execute(args: list[str], body: object = None) -> subprocess.CompletedProces
     return result
 
 
+def execute(args: list[str]) -> None:
+    """For commands whose output is not needed. Raises CliError on failure."""
+    _execute(args)
+
+
 def status_only(args: list[str]) -> dict:
     """For `api` calls that may answer with an empty body, which --jq rejects."""
     first_line = (_execute([*args, "-i"]).stdout.splitlines() or [""])[0]

@@ -5,7 +5,7 @@ import sys
 import time
 from typing import Callable
 
-from flagpilot import audit, card, provision, recommend
+from flagpilot import audit, card, lifecycle, provision, recommend
 from flagpilot import flagsmith_cli as cli
 from flagpilot.provision import Plan
 
@@ -103,6 +103,7 @@ def ship(experiment_id: int, settings: dict, *, apply: bool, confirm: str | None
     if status not in recommend.ACTIVE:
         return refuse(f"experiment is now '{status}'")
 
+    lifecycle.remember_decision(experiment_id, decision)  # evidence for the cleanup PR
     try:
         provision.execute(plan, apply=True, approved_by="user")
     except Exception as error:

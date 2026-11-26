@@ -10,7 +10,7 @@
 - [ ] Keep `.env` off screen. Make the terminal wide enough for the rule table (about 130 columns).
 - [ ] Open the experiment in the Flagsmith dashboard in a second tab.
 - [ ] Leave room for waiting. In rehearsal the agent took about 9 s to explain and verification
-      took 7 s. Trim waits in the edit if you run long.
+      took 7 s. Opening the pull request hasn't been timed. Trim waits in the edit.
 
 ## Script
 
@@ -19,16 +19,22 @@ screen** if they differ.
 
 | Time | On screen | Say |
 |---|---|---|
-| **0:00–0:15** Problem | Dashboard, experiment `570` | "Flagsmith sets experiments up and gives a win probability. Someone still has to trust the data, ship the winner and confirm users get it. Flag Pilot does that, and asks before anything irreversible." |
-| **0:15–0:35** Recommend card | `uv run flagpilot recommend 570` | "The users here are simulated; Flagsmith assigned the arms and computed the results. Control converted 19 of 287, 6.6 percent. 'Buy now' converted 50 of 313, 16 percent. 98.9 percent chance to win. The lift interval is wide, plus 20 to plus 263 percent, and the card shows it." |
-| **0:35–0:55** 8-rule table | Scroll to `Rules` (below) | "Eight rules, plain code, no LLM. Status, data, metric type, sample size, conversions, traffic split, excluded users, chance to win. Flagsmith returned no sample-ratio p-value, so Flag Pilot computed its own: 0.288. One failure and it won't ship." |
-| **0:55–1:25** Approval | `/ship-winner 570`, read the explanation, reply `yes`, show the dry-run, type `checkout-button-buy-now` | "The agent explains the verdict but can't change it. Yes only gets me a dry-run: the exact call and body. To ship, I type the experiment's name." Tell the mistyped-id story while the dry-run runs. |
-| **1:25–1:40** Verify | Command output: status and `10/10 sample identities get "buy_now"` | "It ends the experiment, then polls until all ten sample identities get the winner. A successful API call alone isn't proof." |
-| **1:40–1:50** Audit | `tail -n 6 audit.jsonl \| jq -c '{ts,action,tier,dry_run,approved_by,status}'` | "Every step is logged: dry-run, approval, call and verification." |
-| **1:50–2:00** Cleanup PR *(Phase 4, if ready)* | The open PR and its diff | "Then a pull request removes the losing branch. A human merges it." |
+| **0:00–0:12** Problem | Dashboard, experiment `570` | "Flagsmith gives a win probability. Someone still has to trust the data, ship the winner and delete the old code." |
+| **0:12–0:30** Recommend card | `uv run flagpilot recommend 570` | "These users are simulated; Flagsmith computed the results. Control: 6.6 percent. 'Buy now': 16 percent. 98.9 percent chance to win, with a wide lift interval, shown honestly." |
+| **0:30–0:45** 8-rule table | Scroll to `Rules` (below) | "Eight rules in plain code, no LLM. Flagsmith sent no sample-ratio value, so Flag Pilot computed its own. One failure and it won't ship." |
+| **0:45–1:12** Approval | `/ship-winner 570`, read the explanation, reply `yes`, show the dry-run, type `checkout-button-buy-now` | "The agent explains but can't change the verdict. Yes only gets a dry-run. To ship, I type the name." Tell the mistyped-id story while the dry-run runs. |
+| **1:12–1:22** Verify | Command output: status and `10/10 sample identities get "buy_now"` | "It polls until all ten sample identities get the winner." |
+| **1:22–1:30** Audit | `tail -n 6 audit.jsonl \| jq -c '{ts,action,tier,dry_run,approved_by,status}'` | "Every dry-run, approval and call is logged." |
+| **1:30–1:48** Cleanup | `/cleanup-flag 570`: call site and diff, reply `yes` | "Now the dead code. One call site, winner stays, flag read goes, purchase tracking stays. I approve." |
+| **1:48–2:00** Pull request | Open the PR URL: rules table, results, checklist | "Tests passed first. The PR carries the evidence. I merge, never the agent. Then retire archives the flag." |
 
-**If Phase 4 isn't ready**, replace the last row with: "Next is a cleanup pull request. Until then,
-unidentified users still get the default, control." Don't show or describe a PR that doesn't exist.
+**If the cleanup step fails**, show the dry-run diff and say the pull request didn't open. Don't
+show or describe a PR that doesn't exist.
+
+## After recording
+
+1. Review and merge the cleanup PR.
+2. `uv run flagpilot retire checkout_button`, then `--apply` and type `checkout_button`.
 
 ## The 8-rule table
 

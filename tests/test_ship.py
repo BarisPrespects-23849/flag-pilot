@@ -7,7 +7,7 @@ import json
 
 import pytest
 
-from flagpilot import audit, recommend, settings, ship
+from flagpilot import audit, lifecycle, recommend, settings, ship
 from tests import real_570
 
 SETTINGS = settings.load()
@@ -65,6 +65,8 @@ def test_apply_ships_verifies_and_audits_every_step(flagsmith, capsys):
     assert logged()[2]["tier"] == 3 and logged()[2]["approved_by"] == "user"
     output = capsys.readouterr().out
     assert "10/10" in output and "Run cleanup to make it permanent" in output
+    saved = lifecycle.load_state()["ship_decisions"]["570"]  # evidence for the cleanup PR
+    assert saved["verdict"] == "SHIP_VARIANT" and all(r["passed"] for r in saved["rules"])
 
 
 @pytest.mark.parametrize("kwargs", [

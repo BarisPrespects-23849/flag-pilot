@@ -3,8 +3,8 @@
 **Flagsmith's setup prompt gets an experiment running. Flag Pilot takes it from there.**
 
 It reads the real results, explains them in plain English, asks a human, ships the winner and
-checks that users actually get it. Removing the dead code afterwards (the cleanup PR) is planned,
-not built yet.
+checks that users actually get it. Then it opens a pull request that removes the dead code, and
+archives the flag once a human has merged it.
 
 Built for Flagsmith Track 2, *AI Agents and Feature Flags*.
 
@@ -12,6 +12,8 @@ Built for Flagsmith Track 2, *AI Agents and Feature Flags*.
 - **A human approves.** Shipping is irreversible, so you type the experiment's name.
 - **Tried for real.** `ship --apply` ran end to end on a throwaway experiment in Flagsmith Cloud:
   10 of 10 sample identities got the winner 7 seconds after the call. The users were simulated.
+  `retire --apply` archived two throwaway flags. `cleanup` has run as a dry-run on the real
+  experiment; opening a real pull request has not been tried yet.
 
 ## Lifecycle
 
@@ -22,7 +24,9 @@ flowchart TD
     C -- "any rule fails: keep running" --> B
     C -- "all rules pass" --> D["Approve<br/>say yes, then type the experiment name"]
     D --> E["Ship<br/>end experiment, poll until winner is served"]
-    E -.-> F["Cleanup PR<br/>Phase 4, planned"]
+    E --> F["Cleanup PR<br/>remove the flag read, run tests"]
+    F --> G["A human reviews and merges"]
+    G --> H["Retire<br/>type the flag name, archive the flag"]
 ```
 
 ## Track 2 criteria
@@ -30,21 +34,22 @@ flowchart TD
 | Criterion | How Flag Pilot earns it |
 |---|---|
 | CLI / API / MCP use | Flagsmith CLI v2, the Experiments, Metrics, Results and Exposures APIs, and the Python SDK with events. MCP is not used for experiments because it can't start them. |
-| Saves time | Reading results, deciding and rolling out is one command (`/ship-winner <id>`) and two replies, instead of dashboard clicks. |
-| Human approves changes | Tiered gates. Ending and shipping needs the typed experiment name. |
+| Saves time | Reading results, deciding and rolling out is one command (`/ship-winner <id>`) and two replies. `/cleanup-flag <id>` turns the result into a pull request. |
+| Human approves changes | Tiered gates. Shipping needs the typed experiment name, archiving needs the typed flag name, and merging is yours. |
 | Clear output | One decision card: verdict, per-arm numbers, every rule with pass or fail, and the exact call that would run. |
 
-Token use: Flag Pilot's own code makes no LLM calls. In `/ship-winner`, Claude Code only explains
-a compact JSON summary and relays your approval; `/cost` shows the session's usage.
+Token use: Flag Pilot's own code makes no LLM calls. Claude Code explains the decision or the diff,
+relays your approval and, only when the code needs it, writes a patch that `cleanup` verifies.
+`/cost` shows the session's usage.
 
 ## Autonomy matrix: what it does alone and where it stops
 
 | Tier | Actions | Where it stops | In the code today |
 |---|---|---|---|
 | **0 Read** | read experiment, exposures, results; refresh them | Runs on its own | `recommend`; `--refresh` is auto-approved and logged |
-| **1 Reversible, nothing new served** | create flag (serves `control`), add variant at 0%, create metric | Dry-run, then approval | `--apply --approved-by NAME` |
+| **1 Reversible, nothing new served** | create flag (serves `control`), add variant at 0%, create metric, push a cleanup branch and open its PR | Dry-run, then approval | `--apply --approved-by NAME`; `cleanup --apply` |
 | **2 Changes what users see or what is measured** | create experiment, start it, send simulated traffic | Dry-run, then approval | `--apply --approved-by NAME`. Pause and rollout edits are not implemented. |
-| **3 Irreversible** | end the experiment and ship the winner | Decision card and typed experiment name; refused if any rule fails | `ship`. Flag deletion is not implemented. |
+| **3 Irreversible or retiring** | end the experiment and ship the winner; archive a flag | Plan and typed name; refused if any check fails | `ship`, `retire`. Archiving can be undone; flag deletion is not implemented. |
 | **Never** | print the auth token, edit a running flag, auto-merge a PR, delete a metric in use | Not offered | Not implemented |
 
 Creating an experiment serves its 50/50 split **immediately**, before it is started. That is why it
@@ -65,9 +70,32 @@ All must pass. Thresholds are in [`flagpilot.toml`](flagpilot.toml).
 | 7 | `excluded_identities` | at most 1% of exposures |
 | 8 | `chance_to_win` | at least 95% (ship the variant) or at most 5% for every variant (ship control) |
 
+## Cleanup and retire
+
+`cleanup <experiment id>` refuses unless the experiment is `completed`, and takes the winner from
+the API (`rollout_decision`, `rollout_variant`).
+
+- Finds reads with Python's `ast` (`get_experiment_flag`, `get_flag`, `get_feature_value`,
+  `is_feature_enabled`), flag-name literals and constants, and cross-checks with `git grep`.
+- Rewrites a read that feeds an `if`, keeping the winner's path. Anything else is reported as
+  needing a manual edit, supplied with `--patch`.
+- `--apply` works in a temporary git worktree from `origin/main`. It pushes only if just the listed
+  files changed, 0 references remain, event tracking such as `track_event("purchase")` is still
+  there and the tests pass.
+- Opens the PR with the verdict, rules, results, dashboard link and audit entries. Never merges.
+- Delete flag-only tests by marking their file `pytestmark = pytest.mark.flag("<flag>")`.
+- `--assume-winner <key>` previews the diff before completion. Dry-run only.
+
+`retire <flag>` archives (never deletes). It refuses unless every experiment on the flag is
+`completed`, the cleanup PR is merged into `main`, and `origin/main` has 0 references. `--no-code`
+skips only the PR check, for flags that never had application code.
+
+"References" means application code (`app_paths` in `flagpilot.toml`, here `demo/`) and test files
+marked for the flag. Mentions in tooling, docs and fixtures are listed and left alone.
+
 ## Safety rules
 
-- **Dry-run by default.** Provisioning, start, simulator and `ship` change nothing without `--apply`.
+- **Dry-run by default.** Provisioning, start, simulator, `ship`, `cleanup` and `retire` change nothing without `--apply`.
 - **Typed-name approval.** `ship --apply` asks for the experiment name, or takes `--confirm "<name>"`.
 - **`--expect-winner`.** Required with `--confirm`. If the winner changed since the dry-run, `ship` refuses.
 - **Fresh checks.** `ship` recomputes the verdict, then rereads the status just before the call.
@@ -113,15 +141,32 @@ uv run flagpilot ship <id>                  # dry-run
 uv run flagpilot ship <id> --apply          # irreversible; asks for the experiment name
 ```
 
-Or, in Claude Code: `/ship-winner <id>`.
+Then remove the flag:
+
+```bash
+uv run flagpilot cleanup <id>                  # dry-run: call sites and diff
+uv run flagpilot cleanup <id> --apply          # branch, tests, push, pull request
+# review and merge the pull request yourself
+uv run flagpilot retire <flag>                 # dry-run
+uv run flagpilot retire <flag> --apply         # asks for the flag name
+```
+
+Or, in Claude Code: `/ship-winner <id>`, then `/cleanup-flag <id>`.
+
+`cleanup` and `retire` use the GitHub CLI (`gh auth login`) and an `origin` remote.
 
 Demo shop: `uv run uvicorn demo.app:app --port 8800`, then open
 `http://127.0.0.1:8800/?user_id=alice`. A visit records a real exposure if the experiment is running.
 
 ## Known limits
 
-- **The default value stays `control` until cleanup.** Identified users get the winner; requests without an identity still get `control`.
-- **Cleanup is not built.** No PR is opened and no flag is deleted.
+- **The default value stays `control` until cleanup.** After shipping, identified users get the winner; requests without an identity still get `control`, until the cleanup PR is merged and deployed.
+- **Cleanup applies the winner everywhere** the code runs, including an environment where the flag still serves something else.
+- **Cleanup's PR step is untested against GitHub.** `--apply` has run only on a throwaway local repository with GitHub faked.
+- **Narrow rewriter.** It handles Python reads that feed an `if`. It can leave unused parameters or helpers behind.
+- **One repository.** `cleanup` and `retire` can't see other services that read the flag.
+- **Archiving doesn't stop evaluation.** About a minute after archiving, `flagsmith evaluate` still returned both flags' values.
+- **One environment.** `retire` checks experiments in the environment in `flagsmith.json`, but archiving affects the whole project.
 - **Traffic is simulated.** The users and purchase rates are invented in `flagpilot/simulate.py`. Flagsmith assigns arms and computes the results.
 - **Rate limits.** Results can be refreshed once every 5 minutes, and exposure refresh is limited too. `recommend --refresh` skips a limited step and shows the existing data.
 - **One metric shape.** Anything other than a single occurrence / up / increase metric is reported as `KEEP_RUNNING`.

@@ -49,6 +49,13 @@ def remember_refresh(experiment_id: int, now: datetime) -> None:
     STATE_PATH.write_text(json.dumps(state, indent=2) + "\n")
 
 
+def remember_decision(experiment_id: int, decision: dict) -> None:
+    """Keep what `ship` decided: the rules cannot be re-evaluated after completion."""
+    state = load_state()
+    state.setdefault("ship_decisions", {})[str(experiment_id)] = decision
+    STATE_PATH.write_text(json.dumps(state, indent=2) + "\n")
+
+
 def _post(experiment_id: int, suffix: str) -> list[str]:
     return ["api", cli.env_path(f"experiments/{experiment_id}/{suffix}"), "-X", "POST"]
 

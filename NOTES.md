@@ -89,12 +89,18 @@ Flagsmith's setup prompt covers 1–3. **Flag Pilot owns step 4 and what comes a
 - After `variant add`, `feature get` reports `type: multivariate` and `variants: [{id, key, value, weight}]`; `id` is the multivariate option id the experiment body needs. The Admin API (`api/v1/projects/<id>/features/<flag id>/`) lists the same ids under `multivariate_options` [ran].
 - `POST E/experiment-metrics/` with the body in the Lifecycle table works and returns `id`; `GET` returns a paginated `results` list [ran].
 - `flagsmith init --project <p> --environment <env key>` writes `flagsmith.json`. It contains no secrets and is safe to commit [doc].
+- `flagsmith feature update <flag> --archive` / `--unarchive` archive and restore a flag (help output) [ran].
+- Archived `flagpilot-smoke` (`305152`) and `flagpilot-rehearsal` (`305225`) on 2026-11-26. Both read back `is_archived: true` from `api/v1/projects/56454/features/`; `feature list` hides them unless `--include-archived`. Right after, and about a minute later (10:50:46 UTC), `evaluate` still returned `winner` / `buy_now` for an identity and `control` without one: archiving did not stop evaluation [ran].
+- A completed experiment (`576`, `592`) keeps `rollout_decision`, `rollout_variant` and `feature.multivariate_options` (id → key, `string_value`). `GET …/experiments/592/results/` still returned the pre-completion results, `is_final: false` [ran].
 
 ### Flag Pilot commands
 - `uv run flagpilot recommend <id> [--json] [--refresh]`: verdict from the real payload; thresholds in `flagpilot.toml`. Run on `570`: `SHIP_VARIANT` (`buy_now`), SRM p=0.288 computed by Flag Pilot [ran].
 - `uv run flagpilot ship <id>` is a dry-run (run on `570`) [ran]. `--apply` asks for the experiment name, or takes `--confirm "<name>" --expect-winner <key>`. `ship --apply` is verified end to end on `592` (§6.3) [ran]. Keep `570` for the demo.
 - Agent layer: `/ship-winner <id>` (`.claude/commands/ship-winner.md`). No paid LLM API; the `anthropic` dependency was removed.
 - The `control` rollout decision of `complete/` is untested; only `variant` was smoke-tested.
+- `uv run flagpilot cleanup <id> [--assume-winner <key>] [--apply] [--patch <file>]`: removes the flag from `app_paths` (`demo/`) and deletes test files marked `pytest.mark.flag("<flag>")`; tooling, docs and fixtures are listed and left alone. `cleanup 570 --assume-winner buy_now` (dry-run) found one read, `demo/app.py:39`; its edit passed the tests on a scratch copy for both winners [ran]. `--apply` is tested only on a throwaway local repo with `gh` faked: no real PR yet. It refuses while `app_paths` or `test_paths` differ from `origin/main`.
+- `uv run flagpilot retire <flag> [--no-code] [--apply --confirm <flag>]`: `--apply --no-code` ran on `flagpilot-smoke` and `flagpilot-rehearsal` after typed names; a second run is refused as already archived [ran]. The PR check (`gh pr view <branch> --json state,baseRefName,url`) is tested with `gh` faked only. `--target rehearsal` tooling still names the archived flag.
+- `ship --apply` now stores its decision in `.flagpilot_state.json` as evidence for the cleanup PR (tests only).
 - `uv run python -m flagpilot.{provision,lifecycle,simulate} … --target {checkout,rehearsal}`: `--target` is required. Each target has its own user prefix (`sim-user`, `rehearsal-user`) because metric `565` counts every `purchase` event [ran: `rehearsal`; `checkout` tests only].
 
 ### Lifecycle

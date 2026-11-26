@@ -90,6 +90,9 @@ the API (`rollout_decision`, `rollout_variant`).
 `completed`, the cleanup PR is merged into `main`, and `origin/main` has 0 references. `--no-code`
 skips only the PR check, for flags that never had application code.
 
+`retire` archives the flag (hidden in the dashboard); archived flags still evaluate, which is safe
+because cleanup already removed every code read.
+
 "References" means application code (`app_paths` in `flagpilot.toml`, here `demo/`) and test files
 marked for the flag. Mentions in tooling, docs and fixtures are listed and left alone.
 

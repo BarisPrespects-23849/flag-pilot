@@ -148,7 +148,7 @@ Verified against the 6.7.0 source [ran]:
 - Delivery failures are only logged (logger `flagsmith`), never raised.
 - `get_experiment_flag` records an exposure only if the flag is enabled, has a variant key and `flag.experiment.in_experiment` is true.
 - The server-side key from `.env` is accepted by the SDK API [ran].
-- Real events API: one `flagpilot_smoke` event (identity `flagpilot-smoke-1`) got HTTP 202 on the first attempt at 08:21 UTC on 2026-11-26; the warehouse still showed `pending_connection`, 0 events, seconds later [ran].
+- Real events API: one `flagpilot_smoke` event (identity `flagpilot-smoke-1`) got HTTP 202 on the first attempt at 08:21 UTC on 2026-11-26; the warehouse still showed `pending_connection`, 0 events, seconds later [ran]. At 08:38 UTC it showed 1 event received, still `pending_connection` [ran].
 
 ```python
 # pip install "flagsmith>=6.3.0"   (6.7.0 is the latest on PyPI)
@@ -205,8 +205,17 @@ An inconclusive result means the agent recommends **keep running** and does noth
 ## 6. Constraints that shape the plan
 1. **The flag is locked while running.** Only the rollout % can change [doc].
 2. **Ending is final.** Results freeze, the flag unlocks, and the experiment can't be restarted [doc].
-3. **`complete/` is in the API spec only, not in the docs, and has never been run** [schema]. The spec says it "completes an experiment and decides what its feature serves afterwards: control, one variant, or the flag disabled. The rollout override is removed."
+3. **`complete/` is in the API spec only, not in the docs** [schema]. **Smoke test passed on 2026-11-26** (results below) [ran]. The spec says it "completes an experiment and decides what its feature serves afterwards: control, one variant, or the flag disabled. The rollout override is removed."
    **Gate before building `ship`:** run it once on a throwaway flag and experiment, `flagpilot-smoke`. Confirm the request is accepted, `status` becomes `completed`, and `flagsmith evaluate --identity <id>` returns the winning value for every identity. If that fails, the fallback is to end the experiment in the dashboard and roll out with a documented flag update.
+
+   Smoke test: Development, flag `flagpilot-smoke` (`305152`), variant `winner` (`37078`), experiment `576`, metric `565` [ran]:
+   - Request: `POST E/experiments/576/complete/` with `{"rollout_decision":"variant","rollout_variant":37078}`, from status `running`.
+   - Response: accepted, body includes `id: 576`. The full body and HTTP code weren't captured; the spec says 200 with the experiment object [schema].
+   - `GET E/experiments/576/` afterwards: `status: completed`, `ended_at` set, `rollout_decision: variant`, `rollout_variant: 37078`, `experiment_rollout: null`.
+   - Before: 5 of `smoke-1..10` got `winner`, 5 `control`. About 1 s after, 1 still got `control`; at about 14 s and 17 s all 10 got `winner` (`SPLIT; weight=100.0`). **The rollout reaches all identities in about 15 s, so `ship` must poll `flagsmith evaluate` until all sampled identities return the winner.** 20 other identities also got `winner`.
+   - **The rollout is a 100% variant weight; the flag's default value stays `control` for unidentified requests** (`evaluate` without an identity).
+   - After completion the SDK returns no experiment metadata, so no further exposures are recorded. Production still served `control` (5 identities).
+   - **Accepted with the warehouse `pending_connection`, no simulated traffic and no results refresh**, so `complete/` does not check results: Flag Pilot's ship gates are the only safety net.
 4. **Refresh at most once every 5 minutes** [doc].
 5. **Every variant needs `--key`**, or no exposures are recorded. `control` is reserved. `--variants` on `feature create` can't set keys [doc].
 6. **Identify before getting the flag.** Use the same identifier for exposure and conversion. Event names are case-sensitive [doc].
@@ -248,7 +257,7 @@ An inconclusive result means the agent recommends **keep running** and does noth
 - [x] Record the warehouse status from `GET E/warehouse-connections/`: `pending_connection` (§2) [ran].
 - [ ] Create a server-side key and put it in `.env` only.
 - [ ] Confirm the real `results/` payload shape once there's data.
-- [ ] Smoke-test `complete/` on `flagpilot-smoke` before building `ship` (§6.3).
+- [x] Smoke-test `complete/` on `flagpilot-smoke` before building `ship` (§6.3): passed [ran]. The flag can be archived later.
 - [x] Run `docker info` on the Mac: the daemon is not running, so start Docker Desktop and rerun before relying on the fallback [ran].
 - [ ] End of day 1: decide whether the warehouse is Connected or we switch to the fallback.
 - [ ] Pick the quarantine threshold for gate 5.

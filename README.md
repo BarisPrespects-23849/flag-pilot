@@ -12,8 +12,8 @@ Built for Flagsmith Track 2, *AI Agents and Feature Flags*.
 - **A human approves.** Shipping is irreversible, so you type the experiment's name.
 - **Tried for real.** `ship --apply` ran end to end on a throwaway experiment in Flagsmith Cloud:
   10 of 10 sample identities got the winner 7 seconds after the call. The users were simulated.
-  `retire --apply` archived two throwaway flags. `cleanup` has run as a dry-run on the real
-  experiment; opening a real pull request has not been tried yet.
+  A dress rehearsal then ran the whole chain: ship, a real cleanup pull request, a human merge
+  and `retire`.
 
 ## Lifecycle
 
@@ -165,7 +165,8 @@ Demo shop: `uv run uvicorn demo.app:app --port 8800`, then open
 
 - **The default value stays `control` until cleanup.** After shipping, identified users get the winner; requests without an identity still get `control`, until the cleanup PR is merged and deployed.
 - **Cleanup applies the winner everywhere** the code runs, including an environment where the flag still serves something else.
-- **Cleanup's PR step is untested against GitHub.** `--apply` has run only on a throwaway local repository with GitHub faked.
+- **The cleanup PR doesn't flag simulated traffic.** Its audit table leaves out the simulator run.
+- **Manual edits are lightly tested.** `cleanup --patch` has run only on a throwaway local repository with GitHub faked.
 - **Narrow rewriter.** It handles Python reads that feed an `if`. It can leave unused parameters or helpers behind.
 - **One repository.** `cleanup` and `retire` can't see other services that read the flag.
 - **Archiving doesn't stop evaluation.** About a minute after archiving, `flagsmith evaluate` still returned both flags' values.

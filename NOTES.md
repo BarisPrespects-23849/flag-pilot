@@ -98,9 +98,10 @@ Flagsmith's setup prompt covers 1–3. **Flag Pilot owns step 4 and what comes a
 - `uv run flagpilot ship <id>` is a dry-run (run on `570`) [ran]. `--apply` asks for the experiment name, or takes `--confirm "<name>" --expect-winner <key>`. `ship --apply` is verified end to end on `592` (§6.3) [ran]. Keep `570` for the demo.
 - Agent layer: `/ship-winner <id>` (`.claude/commands/ship-winner.md`). No paid LLM API; the `anthropic` dependency was removed.
 - The `control` rollout decision of `complete/` is untested; only `variant` was smoke-tested.
-- `uv run flagpilot cleanup <id> [--assume-winner <key>] [--apply] [--patch <file>]`: removes the flag from `app_paths` (`demo/`) and deletes test files marked `pytest.mark.flag("<flag>")`; tooling, docs and fixtures are listed and left alone. `cleanup 570 --assume-winner buy_now` (dry-run) found one read, `demo/app.py:39`; its edit passed the tests on a scratch copy for both winners [ran]. `--apply` is tested only on a throwaway local repo with `gh` faked: no real PR yet. It refuses while `app_paths` or `test_paths` differ from `origin/main`.
-- `uv run flagpilot retire <flag> [--no-code] [--apply --confirm <flag>]`: `--apply --no-code` ran on `flagpilot-smoke` and `flagpilot-rehearsal` after typed names; a second run is refused as already archived [ran]. The PR check (`gh pr view <branch> --json state,baseRefName,url`) is tested with `gh` faked only. `--target rehearsal` tooling still names the archived flag.
-- `ship --apply` now stores its decision in `.flagpilot_state.json` as evidence for the cleanup PR (tests only).
+- `uv run flagpilot cleanup <id> [--assume-winner <key>] [--apply] [--patch <file>]`: removes the flag from `app_paths` (`demo/`) and deletes test files marked `pytest.mark.flag("<flag>")`; tooling, docs and fixtures are listed and left alone. `cleanup 570 --assume-winner buy_now` (dry-run) found one read, `demo/app.py:39`; its edit passed the tests on a scratch copy for both winners [ran]. `--apply` opened a real pull request in the dress rehearsal (§6.3) [ran]; `--patch` is tested only on a throwaway local repo with `gh` faked. It refuses while `app_paths` or `test_paths` differ from `origin/main`.
+- `uv run flagpilot retire <flag> [--no-code] [--apply --confirm <flag>]`: `--apply --no-code` ran on `flagpilot-smoke` and `flagpilot-rehearsal` after typed names; a second run is refused as already archived [ran]. The PR check (`gh pr view <branch> --json state,baseRefName,url`) passed against a real merged PR (§6.3) [ran]. `--target rehearsal` tooling still names the archived flag.
+- `ship --apply` stores its decision in `.flagpilot_state.json`; the real cleanup PR quoted it as the ship-time verdict [ran].
+- Extra provisioning targets come from `[targets.<name>]` in `flagpilot.toml` (`--target dress`); each sets its own variant key, value and user prefix [ran].
 - `uv run python -m flagpilot.{provision,lifecycle,simulate} … --target {checkout,rehearsal}`: `--target` is required. Each target has its own user prefix (`sim-user`, `rehearsal-user`) because metric `565` counts every `purchase` event [ran: `rehearsal`; `checkout` tests only].
 
 ### Lifecycle
@@ -267,6 +268,13 @@ An inconclusive result means the agent recommends **keep running** and does noth
    - `audit.jsonl` has the dry-run and apply of each provisioning, start, simulator and ship step.
    - `/ship-winner` stopped, changing nothing, on an empty id, on "no", and on the experiment name sent before the dry-run.
    - Mistyped id (09:42 UTC): `/ship-winner 570` was sent when the rehearsal `592` was meant. The agent warned that `570` is the demo experiment and recommended "no"; the answer was no and `ship` was not run for it [ran]. The catch came from the agent layer using that session's instructions, not from a gate (`570` passed all 8 rules). The code's backstop is the typed experiment name.
+   **Dress rehearsal, full chain for real [ran]** (2026-11-26, each state change approved):
+   - Flag `flagpilot-dress` (`305486`), variant `new` (`37232`), experiment `626`, metric `565`, 600 SIMULATED users `dress-user-*` (rates 0.10 / 0.16, seed 1).
+   - Results refreshed about 80 s after the simulator finished matched delivery: control 28/292, `new` 63/308. `SHIP_VARIANT`, chance to win 99.4%; no second batch.
+   - `/ship-winner 626`: `completed`; 10/10 verify identities got `new` after 9 s (before traffic: 6 `control`, 4 `new`).
+   - `/cleanup-flag 626` → real `cleanup --apply` and `gh pr create`: PR #1, `demo/dress.py` rewritten, `tests/test_dress_flag.py` deleted, 178 tests passed in the worktree (31 s), 38 s from branch to PR.
+   - A person merged PR #1 on GitHub (`ff95d5a`); `retire`'s merged-PR check passed; `retire --apply` archived the flag after the typed name (`is_archived: true`). `evaluate` right after still returned `new` for an identity and `control` without one.
+   - Gap seen in PR #1: its audit table omits the `simulate_traffic` entry and the body doesn't say the traffic was simulated.
 4. **Refresh at most once every 5 minutes** [doc].
    `exposures/refresh/` is limited too: 12 s after a refresh it answered 429, `A refresh was requested recently… Expected available in 288 seconds.` `recommend --refresh` now skips a rate-limited step and carries on [ran].
    On `592`, a refresh seconds after the simulator finished already counted all 600 users, and results about 1 minute later included every conversion [ran].

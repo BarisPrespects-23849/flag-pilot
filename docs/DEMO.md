@@ -10,7 +10,8 @@
 - [ ] Keep `.env` off screen. Make the terminal wide enough for the rule table (about 130 columns).
 - [ ] Open the experiment in the Flagsmith dashboard in a second tab.
 - [ ] Leave room for waiting. In rehearsal the agent took about 9 s to explain and verification
-      took 7 s. Opening the pull request hasn't been timed. Trim waits in the edit.
+      took 7 s. Opening the pull request took about 40 s,
+      longer than its slot. Trim waits in the edit.
 
 ## Script
 

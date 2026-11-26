@@ -84,6 +84,10 @@ Flagsmith's setup prompt covers 1–3. **Flag Pilot owns step 4 and what comes a
   - Use OAuth via `flagsmith login`, or `FLAGSMITH_API_KEY`, a Master API key in `{prefix}.{secret}` format.
   - Either way the CLI sends `Authorization: Api-Key <key>`.
   - `flagsmith auth token` prints the credential. **Never run it.**
+- A new flag can take a moment to reach the SDK API: `evaluate checkout_button` right after `feature create` found nothing, and a retry shortly after returned it [ran].
+- `flagsmith feature get <flag> --json` returns `{id, name, type, enabled, default_value, description}`; `type` is `standard` before any variant exists [ran].
+- After `variant add`, `feature get` reports `type: multivariate` and `variants: [{id, key, value, weight}]`; `id` is the multivariate option id the experiment body needs. The Admin API (`api/v1/projects/<id>/features/<flag id>/`) lists the same ids under `multivariate_options` [ran].
+- `POST E/experiment-metrics/` with the body in the Lifecycle table works and returns `id`; `GET` returns a paginated `results` list [ran].
 - `flagsmith init --project <p> --environment <env key>` writes `flagsmith.json`. It contains no secrets and is safe to commit [doc].
 
 ### Lifecycle
@@ -119,6 +123,12 @@ Experiment create body [doc]:
    "multivariate_feature_state_values": [{"multivariate_feature_option": <variant id>, "percentage_allocation": 50}]}}
 ```
 
+Verified on experiment `570` (`checkout-button-buy-now`, flag `305133`, variant `37071`, metric `565`) [ran]:
+- **Creating an experiment with `experiment_rollout` changes what is served immediately**, while `status` is still `created`: Development identities split between `control` and `buy_now` (SDK and `evaluate`). Treat it as Tier 2.
+- Before start the SDK returns no experiment metadata (`flag.experiment` is `None`), so `get_experiment_flag` records no exposure.
+- Production kept serving `control` (`STATIC`) to 10 test identities.
+- The inline metric id is accepted as an integer.
+
 Enums [schema]:
 - `status`: created, running, paused, completed.
 - `rollout_decision`: control, variant, disable.
@@ -132,7 +142,12 @@ Results fields [schema, **confirm with real data**]:
 
 ### Python SDK [doc]
 
-The docs don't show a flush or close call for Python. Buffered events are dropped when the interpreter exits, so short scripts must use `max_buffer_items=1`.
+Verified against the 6.7.0 source [ran]:
+- `flush_events()` sends buffered events and waits; `close()` sends them and stops. Nothing flushes at exit, so call `close()`. (The docs don't show either.)
+- `max_buffer_items` is also the buffer's capacity. With `1`, call `flush_events()` after every event: 200 events tracked back to back delivered only 1 (local stub) [ran].
+- Delivery failures are only logged (logger `flagsmith`), never raised.
+- `get_experiment_flag` records an exposure only if the flag is enabled, has a variant key and `flag.experiment.in_experiment` is true.
+- The server-side key from `.env` is accepted by the SDK API [ran].
 
 ```python
 # pip install "flagsmith>=6.3.0"   (6.7.0 is the latest on PyPI)
@@ -150,8 +165,8 @@ fs.track_event("<event>", identifier=user_id)                  # conversion (sam
 | Tier | Actions | Behaviour |
 |---|---|---|
 | **0 Read** | list, get, `results/`, `exposures/`, warehouse status, refresh (rate-limited) | Runs on its own; results are cached |
-| **1 Reversible, nothing served** | create flag, add variant, create metric, create experiment (status `created`) | Dry-run shown first, then a single `y/N` |
-| **2 Changes what users see** | `start/`, `pause/`, `PATCH rollout/` | Decision card plus `y/N`. Refused if the warehouse isn't connected |
+| **1 Reversible, nothing served** | create flag, add variant, create metric | Dry-run shown first, then a single `y/N` |
+| **2 Changes what users see** | create experiment (its rollout is served immediately, §6.11), `start/`, `pause/`, `PATCH rollout/` | Decision card plus `y/N`. Start gate: warehouse connection exists (pending or connected); refuse if none |
 | **3 Irreversible** | `complete/` (ship the winner), `feature delete` | Decision card plus **typing the experiment name**. Refused if any gate fails |
 | **Never** | `auth token`, editing the flag while running, auto-merging a PR, deleting a metric on an active experiment | Not implemented |
 
@@ -202,6 +217,7 @@ An inconclusive result means the agent recommends **keep running** and does noth
    We never demo with fabricated results.
 9. **MCP server:** not used for experiments (it can't start them) [doc].
 10. **One active experiment per flag** [doc, schema].
+11. Creating an experiment with experiment_rollout.enabled=true applies the split immediately, before start; exposures are only recorded after start [ran].
 
 ---
 

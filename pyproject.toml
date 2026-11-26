@@ -1,0 +1,19 @@
+[project]
+name = "flag-pilot"
+version = "0.1.0"
+description = "An agent that takes a Flagsmith experiment from results to rollout and cleanup."
+requires-python = ">=3.12,<3.13"
+dependencies = [
+    "flagsmith>=6.3.0",
+    "anthropic",
+    "fastapi",
+    "uvicorn",
+    "python-dotenv",
+]
+
+[dependency-groups]
+dev = ["pytest", "httpx"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+pythonpath = ["."]

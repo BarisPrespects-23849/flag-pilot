@@ -19,8 +19,10 @@ class _LocalServer(ThreadingHTTPServer):
 
 
 class Stub:
-    def __init__(self, in_experiment: bool = True, events_status: int = 202):
+    def __init__(self, in_experiment: bool = True, events_status: int = 202,
+                 failures_first: int = 0):
         self.events: list[dict] = []
+        self.failures_left = failures_first  # event requests answered 503 first
         stub = self
 
         class Handler(BaseHTTPRequestHandler):
@@ -44,6 +46,9 @@ class Stub:
                             "experiment": {"id": 7, "name": "stub", "in_experiment": True}
                         }
                     self.reply(200, {"flags": [flag]})
+                elif stub.failures_left:
+                    stub.failures_left -= 1
+                    self.reply(503, {})
                 else:
                     if events_status < 400:
                         stub.events.extend(body["events"])

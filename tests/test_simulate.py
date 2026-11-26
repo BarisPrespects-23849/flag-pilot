@@ -36,6 +36,17 @@ def test_stops_when_the_events_api_rejects_a_batch():
             simulate.simulate(client, simulate.user_ids(5, "t"), RATES, seed=1)
 
 
+def test_a_retried_send_is_reported_but_does_not_stop_the_run():
+    warnings: list[str] = []
+    with Stub(failures_first=1) as stub:
+        sent = simulate.simulate(
+            simulate.make_client(**stub.client_args()), simulate.user_ids(3, "t"), RATES,
+            seed=1, sdk_warnings=warnings,
+        )
+    assert sum(n for k, n in sent.items() if k.startswith("exposed:")) == 3
+    assert len(warnings) == 1 and warnings[0].startswith(simulate.RETRY_WARNING)
+
+
 def test_dry_run_sends_nothing(monkeypatch, tmp_path):
     monkeypatch.setattr(simulate.audit, "AUDIT_PATH", tmp_path / "audit.jsonl")
     monkeypatch.setattr(simulate, "make_client", lambda: pytest.fail("client created"))

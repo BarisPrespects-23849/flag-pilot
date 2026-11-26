@@ -28,6 +28,7 @@ class Plan:
     body: object = None
     effect: str = ""
     tier: int = 1
+    empty_response: bool = False  # judge success by HTTP status, not by a JSON body
 
     @property
     def path(self) -> str:
@@ -182,7 +183,10 @@ def execute(plan: Plan, *, apply: bool, approved_by: str | None) -> object:
         return None
 
     try:
-        response = cli.run(plan.args, body=plan.body)
+        if plan.empty_response:
+            response = cli.status_only(plan.args)
+        else:
+            response = cli.run(plan.args, body=plan.body)
     except Exception:
         audit.record(**log, dry_run=False, approved_by=approved_by, status="failed")
         raise
@@ -191,7 +195,10 @@ def execute(plan: Plan, *, apply: bool, approved_by: str | None) -> object:
         **log, dry_run=False, approved_by=approved_by,
         status="success", response_id=response_id,
     )
-    print(f"  done (id: {response_id})")
+    detail = f"id: {response_id}"
+    if plan.empty_response:
+        detail = f"HTTP {response['http_status']}"
+    print(f"  done ({detail})")
     return response
 
 

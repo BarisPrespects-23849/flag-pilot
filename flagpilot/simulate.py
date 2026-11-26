@@ -21,6 +21,11 @@ from flagpilot import audit, config, provision
 TIER = 2  # writes into the experiment's data
 
 
+# The SDK logs this for each failed attempt, including ones a retry then delivers.
+# A batch that is finally lost or held back logs a different warning as well.
+RETRY_WARNING = "Failed to send "
+
+
 class DeliveryError(RuntimeError):
     pass
 
@@ -51,19 +56,32 @@ def user_ids(count: int, prefix: str) -> list[str]:
     return [f"{prefix}-{n:05d}" for n in range(1, count + 1)]
 
 
-def simulate(client: Flagsmith, ids: list[str], rates: dict[str, float], seed: int) -> Counter:
-    """Return counts of what was sent, per arm. Raises on the first delivery problem."""
+def simulate(
+    client: Flagsmith,
+    ids: list[str],
+    rates: dict[str, float],
+    seed: int,
+    sent: Counter | None = None,
+    sdk_warnings: list[str] | None = None,
+) -> Counter:
+    """Return counts of what was delivered, per arm. Raises on the first lost event.
+
+    Pass `sent` and `sdk_warnings` to keep the partial counts if the run fails.
+    """
     warnings = _SdkWarnings()
+    if sdk_warnings is not None:
+        warnings.messages = sdk_warnings
     sdk_log = logging.getLogger("flagsmith")
     sdk_log.addHandler(warnings)
-    sent: Counter = Counter()
+    sent = Counter() if sent is None else sent
 
     def flush() -> None:
         # max_buffer_items=1 also caps the buffer at one event, so each event must
         # be delivered before the next is tracked, or the older one is dropped.
         client.flush_events()
-        if warnings.messages:
-            raise DeliveryError(f"Event delivery problem: {warnings.messages[0]}")
+        problems = [m for m in warnings.messages if not m.startswith(RETRY_WARNING)]
+        if problems:
+            raise DeliveryError(f"Event delivery problem: {problems[0]}")
 
     try:
         for user_id in ids:
@@ -135,13 +153,18 @@ def main(argv: list[str] | None = None) -> int:
         print(f"BLOCKED: experiment '{config.EXPERIMENT_NAME}' is not running.", file=sys.stderr)
         audit.record(**log, dry_run=False, approved_by=args.approved_by, status="blocked")
         return 1
+    sent: Counter = Counter()
+    sdk_warnings: list[str] = []
+    status = "failed"
     try:
-        sent = simulate(make_client(), ids, rates, args.seed)
-    except Exception:
-        audit.record(**log, dry_run=False, approved_by=args.approved_by, status="failed")
-        raise
-    audit.record(**log, dry_run=False, approved_by=args.approved_by, status="success")
-    print(f"sent: {dict(sorted(sent.items()))}")
+        simulate(make_client(), ids, rates, args.seed, sent, sdk_warnings)
+        status = "success"
+    finally:
+        audit.record(**log, dry_run=False, approved_by=args.approved_by, status=status)
+        print(f"{status}. delivered: {dict(sorted(sent.items()))}")
+        print(f"SDK warnings: {len(sdk_warnings)}")
+        for message, count in Counter(sdk_warnings).most_common(10):
+            print(f"  {count}x {message}")
     return 0
 
 

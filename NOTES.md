@@ -59,7 +59,7 @@ Flagsmith's setup prompt covers 1–3. **Flag Pilot owns step 4 and what comes a
 | Project | **flag-pilot** ✅ |
 | Environment | **Development** (Production also exists) ✅ |
 | Experimentation enabled | ✅ The Experiments and Metrics menus are visible |
-| Warehouse | **Flagsmith (managed)**, id `12751`: `pending_connection`, created 07:24 UTC; 0 events at 07:42 UTC [ran]. Test event sent. Up to a few hours for the first event [doc] |
+| Warehouse | **Flagsmith (managed)**, id `12751`: still shows `pending_connection`, but has 670 events and results for experiment `570` are computed (2026-11-26) [ran]. **Local fallback not needed.** |
 | CLI | `flagsmith v2.0.0` on macOS arm64 via `get.flagsmith.com` ✅ [ran] |
 | CLI auth | `flagsmith login` (OAuth, macOS keychain). `auth status` and `project list` both work ✅ [ran] |
 | Claude Code | v2.1.326 on the Mac ✅ [ran] |
@@ -136,9 +136,38 @@ Enums [schema]:
 - `aggregation`: occurrence, count, sum, mean.
 - `direction`: up, down, informational.
 
-Results fields [schema, **confirm with real data**]:
-- `statistics`: `chance_to_win{variant: p}`, `lift`, `winner`, `significant`, `p_value`, `recommendation`, `sample_size_warning`.
-- Per variant: `variant`, `evaluations`, `conversions`, `conversion_rate`.
+Results payload, real, from `GET E/experiments/570/results/` at 2026-11-26T09:10:21Z, trimmed to one example per field [ran]:
+```json
+{"results": {
+  "as_of": "2026-11-26T09:10:21.835497Z",
+  "is_final": false,
+  "last_error_at": null,
+  "refresh_requested_at": "2026-11-26T09:10:21.726318Z",
+  "payload": {
+    "srm_p_value": null,
+    "exposures_timeseries": {"granularity": "hour",
+      "points": [{"bucket": "2026-11-26T08:00:00+00:00", "new_identities": {"buy_now": 313}}]},
+    "metrics": [{
+      "metric_id": 565,
+      "variants": {"buy_now": {"n": 313, "sum": 50, "sum_squares": 50}},
+      "inference": {"buy_now": {"chance_to_win": 0.9885853264341431, "lift": 1.4129813351269547,
+                                "ci_low": 0.19634964935773724, "ci_high": 2.629613020896172}},
+      "conversions_timeseries": {"granularity": "hour",
+        "points": [{"bucket": "2026-11-26T08:00:00+00:00", "converted_identities": {"buy_now": 50}}]}
+    }]
+  }
+}}
+```
+- **This does not match the spec's `ExperimentResults` schema**: there is no `statistics`, `winner`, `significant`, `p_value`, `recommendation`, `sample_size_warning`, `evaluations`, `conversions` or `conversion_rate`.
+- `variants` has `control` and `buy_now`; `inference` has only `buy_now` (compared against control).
+- Conversion rate is `sum / n` (control 19/287, `buy_now` 50/313). `lift` is relative, as a fraction: it equals rate ratio minus 1 (1.41 = +141%).
+- `srm_p_value` was `null` with 600 identities. What `null` means is unconfirmed.
+- Before the first refresh the response is `{"results": null}`.
+
+Exposures, from `GET E/experiments/570/exposures/` after a refresh [ran]: `{"exposures": {as_of, is_final, last_error_at, refresh_requested_at, payload: {excluded_identities: 0, timeseries: {granularity, points: [{bucket, new_identities: {buy_now: 313, control: 287}}]}}}}`.
+
+- `results/refresh/` answered HTTP 202 with no JSON body; `exposures/refresh/` also returned an empty body. `flagsmith api … --jq` exits 1 on an empty body, so check the status line with `-i` [ran].
+- Both were computed while the warehouse still showed `pending_connection` (670 events) [ran].
 
 ### Python SDK [doc]
 
@@ -225,6 +254,7 @@ An inconclusive result means the agent recommends **keep running** and does noth
    - Switch to a local instance using Flagsmith's local setup prompt. It needs Docker and ports 8000/8001 on the Mac, and its Flagsmith-database warehouse connects immediately.
    - Ask the organizers for help.
    We never demo with fabricated results.
+   **Resolved 2026-11-26:** the warehouse still says `pending_connection`, but it has 670 events and results are computed, so the local fallback is not needed [ran].
 9. **MCP server:** not used for experiments (it can't start them) [doc].
 10. **One active experiment per flag** [doc, schema].
 11. Creating an experiment with experiment_rollout.enabled=true applies the split immediately, before start; exposures are only recorded after start [ran].
@@ -256,9 +286,9 @@ An inconclusive result means the agent recommends **keep running** and does noth
 - [x] Run `flagsmith init` with the Development client-side key [ran].
 - [x] Record the warehouse status from `GET E/warehouse-connections/`: `pending_connection` (§2) [ran].
 - [ ] Create a server-side key and put it in `.env` only.
-- [ ] Confirm the real `results/` payload shape once there's data.
+- [x] Confirm the real `results/` payload shape once there's data: differs from the spec, see §3 [ran].
 - [x] Smoke-test `complete/` on `flagpilot-smoke` before building `ship` (§6.3): passed [ran]. The flag can be archived later.
 - [x] Run `docker info` on the Mac: the daemon is not running, so start Docker Desktop and rerun before relying on the fallback [ran].
-- [ ] End of day 1: decide whether the warehouse is Connected or we switch to the fallback.
+- [x] End of day 1: stay on Cloud. The warehouse says `pending_connection` but results are computed (§6.8) [ran].
 - [ ] Pick the quarantine threshold for gate 5.
 - [ ] GitHub repo for the cleanup PR (`gh auth status` on the Mac).

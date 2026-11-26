@@ -1,0 +1,6 @@
+.env
+.env.*
+!.env.example
+audit.jsonl
+__pycache__/
+.venv/

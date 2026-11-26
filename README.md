@@ -91,7 +91,7 @@ the API (`rollout_decision`, `rollout_variant`).
 skips only the PR check, for flags that never had application code.
 
 `retire` archives the flag (hidden in the dashboard); archived flags still evaluate, which is safe
-because cleanup already removed every code read.
+once cleanup has removed every application code read.
 
 "References" means application code (`app_paths` in `flagpilot.toml`, here `demo/`) and test files
 marked for the flag. Mentions in tooling, docs and fixtures are listed and left alone.

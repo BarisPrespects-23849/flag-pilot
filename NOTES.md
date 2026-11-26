@@ -148,6 +148,7 @@ Verified against the 6.7.0 source [ran]:
 - Delivery failures are only logged (logger `flagsmith`), never raised.
 - `get_experiment_flag` records an exposure only if the flag is enabled, has a variant key and `flag.experiment.in_experiment` is true.
 - The server-side key from `.env` is accepted by the SDK API [ran].
+- Real events API: one `flagpilot_smoke` event (identity `flagpilot-smoke-1`) got HTTP 202 on the first attempt at 08:21 UTC on 2026-11-26; the warehouse still showed `pending_connection`, 0 events, seconds later [ran].
 
 ```python
 # pip install "flagsmith>=6.3.0"   (6.7.0 is the latest on PyPI)

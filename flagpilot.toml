@@ -1,0 +1,14 @@
+# Thresholds for `flagpilot recommend` and `flagpilot ship`. All rules must pass to ship.
+
+[gates]
+min_identities_per_arm = 50
+min_conversions_per_arm = 5
+srm_p_block = 0.001            # block if the sample-ratio-mismatch p-value is below this
+max_excluded_share = 0.01      # excluded identities as a share of exposures
+ship_variant_chance = 0.95     # chance to beat control at or above this: ship the variant
+ship_control_chance = 0.05     # chance at or below this for every variant: ship control
+
+[verify]
+sample_identities = 10         # identities evaluated after complete/
+timeout_seconds = 60
+poll_seconds = 3

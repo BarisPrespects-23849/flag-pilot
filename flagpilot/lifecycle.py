@@ -53,8 +53,9 @@ def _post(experiment_id: int, suffix: str) -> list[str]:
     return ["api", cli.env_path(f"experiments/{experiment_id}/{suffix}"), "-X", "POST"]
 
 
-def plan(step: str) -> Plan:
-    experiment = current_experiment()
+def plan(step: str, experiment: dict | None = None) -> Plan:
+    """`experiment` ({id, status}) defaults to the configured checkout experiment."""
+    experiment = experiment or current_experiment()
     eid, status = experiment["id"], experiment["status"]
     if step == "start":
         if status != "created":
@@ -76,11 +77,13 @@ def plan(step: str) -> Plan:
                 effect="Asks Flagsmith to recompute results (allowed once per 5 minutes).")
 
 
-def run(step: str, *, apply: bool, approved_by: str | None) -> None:
-    planned = plan(step)
+def run(step: str, *, apply: bool, approved_by: str | None,
+        experiment: dict | None = None) -> None:
+    experiment = experiment or current_experiment()
+    planned = plan(step, experiment)
     if apply and step == "results-refresh":
         # Stored before the call, so a failed or timed-out request also counts.
-        remember_refresh(current_experiment()["id"], datetime.now(timezone.utc))
+        remember_refresh(experiment["id"], datetime.now(timezone.utc))
     provision.execute(planned, apply=apply, approved_by=approved_by)
 
 

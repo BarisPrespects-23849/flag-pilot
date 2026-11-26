@@ -1,0 +1,21 @@
+{
+  "as_of": "2026-11-26T09:08:24.499536Z",
+  "is_final": false,
+  "last_error_at": null,
+  "payload": {
+    "excluded_identities": 0,
+    "timeseries": {
+      "granularity": "hour",
+      "points": [
+        {
+          "bucket": "2026-11-26T08:00:00+00:00",
+          "new_identities": {
+            "buy_now": 313,
+            "control": 287
+          }
+        }
+      ]
+    }
+  },
+  "refresh_requested_at": "2026-11-26T09:08:24.399899Z"
+}

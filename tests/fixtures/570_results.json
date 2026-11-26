@@ -1,0 +1,58 @@
+{
+  "as_of": "2026-11-26T09:10:21.835497Z",
+  "is_final": false,
+  "last_error_at": null,
+  "payload": {
+    "exposures_timeseries": {
+      "granularity": "hour",
+      "points": [
+        {
+          "bucket": "2026-11-26T08:00:00+00:00",
+          "new_identities": {
+            "buy_now": 313,
+            "control": 287
+          }
+        }
+      ]
+    },
+    "metrics": [
+      {
+        "conversions_timeseries": {
+          "granularity": "hour",
+          "points": [
+            {
+              "bucket": "2026-11-26T08:00:00+00:00",
+              "converted_identities": {
+                "buy_now": 50,
+                "control": 19
+              }
+            }
+          ]
+        },
+        "inference": {
+          "buy_now": {
+            "chance_to_win": 0.9885853264341431,
+            "ci_high": 2.629613020896172,
+            "ci_low": 0.19634964935773724,
+            "lift": 1.4129813351269547
+          }
+        },
+        "metric_id": 565,
+        "variants": {
+          "buy_now": {
+            "n": 313,
+            "sum": 50,
+            "sum_squares": 50
+          },
+          "control": {
+            "n": 287,
+            "sum": 19,
+            "sum_squares": 19
+          }
+        }
+      }
+    ],
+    "srm_p_value": null
+  },
+  "refresh_requested_at": "2026-11-26T09:10:21.726318Z"
+}

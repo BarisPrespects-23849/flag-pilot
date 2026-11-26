@@ -1,0 +1,59 @@
+{
+  "created_at": "2026-11-26T08:16:52.038828Z",
+  "ended_at": null,
+  "experiment_rollout": {
+    "audience": {
+      "match": "any",
+      "segments": []
+    },
+    "enabled": true,
+    "feature_state_value": {
+      "type": "string",
+      "value": "control"
+    },
+    "multivariate_feature_state_values": [
+      {
+        "multivariate_feature_option": 37071,
+        "percentage_allocation": 50
+      }
+    ],
+    "rollout_percentage": 100
+  },
+  "feature": {
+    "id": 305133,
+    "initial_value": "control",
+    "multivariate_options": [
+      {
+        "boolean_value": null,
+        "default_percentage_allocation": 0,
+        "id": 37071,
+        "integer_value": null,
+        "key": "buy_now",
+        "string_value": "buy_now",
+        "type": "unicode",
+        "uuid": "c329977a-f517-462f-8f21-1ded2cabce82"
+      }
+    ],
+    "name": "checkout_button",
+    "type": "MULTIVARIATE"
+  },
+  "hypothesis": "A 'Buy now' checkout button increases the share of users who purchase.",
+  "id": 570,
+  "metrics": [
+    {
+      "aggregation": "occurrence",
+      "created_at": "2026-11-26T08:16:52.041231Z",
+      "direction": "up",
+      "expected_direction": "increase",
+      "id": 627,
+      "metric": 565,
+      "metric_name": "checkout-purchase"
+    }
+  ],
+  "name": "checkout-button-buy-now",
+  "rollout_decision": null,
+  "rollout_variant": null,
+  "started_at": "2026-11-26T08:46:19.462908Z",
+  "status": "running",
+  "updated_at": "2026-11-26T08:46:19.465588Z"
+}

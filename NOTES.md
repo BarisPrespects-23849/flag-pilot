@@ -90,6 +90,12 @@ Flagsmith's setup prompt covers 1–3. **Flag Pilot owns step 4 and what comes a
 - `POST E/experiment-metrics/` with the body in the Lifecycle table works and returns `id`; `GET` returns a paginated `results` list [ran].
 - `flagsmith init --project <p> --environment <env key>` writes `flagsmith.json`. It contains no secrets and is safe to commit [doc].
 
+### Flag Pilot commands
+- `uv run flagpilot recommend <id> [--json] [--refresh]`: verdict from the real payload; thresholds in `flagpilot.toml`. Run on `570`: `SHIP_VARIANT` (`buy_now`), SRM p=0.288 computed by Flag Pilot [ran].
+- `uv run flagpilot ship <id>` is a dry-run (run on `570`) [ran]. `--apply` asks for the experiment name, or takes `--confirm "<name>" --expect-winner <key>`. **`ship --apply` has never been run against Flagsmith.** Keep `570` for the demo.
+- Agent layer: `/ship-winner <id>` (`.claude/commands/ship-winner.md`). No paid LLM API; the `anthropic` dependency was removed.
+- The `control` rollout decision of `complete/` is untested; only `variant` was smoke-tested.
+
 ### Lifecycle
 
 | Step | Command / endpoint | Source |

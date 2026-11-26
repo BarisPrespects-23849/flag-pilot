@@ -13,7 +13,34 @@ Each fact is tagged with how it was checked:
 
 ## 1. What the track asks for
 
+Official rules, read 2026-11-26: <https://www.wemakedevs.org/hackathons/flagsmith> and its `/rules` page.
+
 **Brief:** "Build an agent or a tool that works with Flagsmith for you, like setting up experiments from a prompt."
+
+**Track 2 judging criteria** ("What the judges look for in each track"):
+
+| Criterion | How Flag Pilot earns it |
+|---|---|
+| "Flagsmith CLI, API or MCP server" | CLI v2, the Experiments, Metrics, Results and Exposures APIs, and the Python SDK with events |
+| "Saves real time" | `/ship-winner` and `/cleanup-flag` replace the dashboard review, ending, rollout, code edit and PR; a person merges, then `retire` archives |
+| "A human approves changes" | Tiered gates (§4). Shipping needs the typed experiment name, archiving the typed flag name; a person merges the PR. |
+| "Clear output" | One decision card: verdict, per-arm numbers, the checks that passed or failed, and the exact call that will run |
+
+**Scorecard for every track** (no weights are stated):
+
+| Criterion | The page's question |
+|---|---|
+| Use of Flagsmith | "Is Flagsmith a core part of the project? Do the flags or the experiments do real work?" |
+| Impact | "Does it solve a real problem? Would a developer or a team actually use it?" |
+| Creativity | "Is the idea new, or does it take a familiar idea somewhere new?" |
+| Demo video | "Does the video clearly show the problem, what you built and how Flagsmith fits in?" |
+
+**Submission:**
+- A **public** GitHub repository, a README with setup steps and how Flagsmith is used, and a short demo video of the working project (no length limit stated).
+- **Deadline: November 29, 8:00 PM IST.** "Late submissions are not accepted."
+- One track only. **Ours: Track 2.**
+- AI coding assistants are allowed; "You have to understand the code you submit and be able to explain it."
+- Neither page says where to submit.
 
 **Suggested ideas, and how Flag Pilot covers them:**
 
@@ -21,9 +48,9 @@ Each fact is tagged with how it was checked:
 |---|---|
 | Turn a feature request into a flagged rollout | ➖ Already covered by Flagsmith's own setup prompt; we reuse its steps |
 | PR reviewer that wraps risky code in flags | ❌ Out of scope |
-| **Agent that opens PRs to remove stale flags** | ✅ `flagpilot cleanup` |
+| **Agent that opens PRs to remove stale flags** | ✅ `flagpilot cleanup`, for flags whose experiment is completed |
 | **Roll out the winning version after human approval** | ✅ `flagpilot ship` |
-| **Bot that explains which flags a user sees** | ✅ `flagpilot explain` (plain-English results; per-identity is a stretch goal) |
+| Bot that explains which flags a user sees | ❌ Not built (the decision card explains experiment results, not one user's flags) |
 
 **Track tip:** *"The MCP server, API and CLI give your agent access to Flagsmith. The interesting part is deciding what the agent does on its own and where it stops to ask a person."* The autonomy matrix in §4 is our answer, and it is the centrepiece of the demo.
 
@@ -35,17 +62,8 @@ Each fact is tagged with how it was checked:
 
 Flagsmith's setup prompt covers 1–3. **Flag Pilot owns step 4 and what comes after it.**
 
-**Track 2 judging criteria (from the challenge page). Build these first:**
-
-| Criterion | How Flag Pilot earns it |
-|---|---|
-| CLI / API / MCP use | CLI v2 plus the Experiments, Metrics, Results and Exposures APIs, and the Python SDK with events |
-| Saves time | Reading results, deciding and rolling out takes one command and one approval, instead of dashboard clicks |
-| Human approves changes | Tiered gates (§4). Ending and shipping requires typing the experiment name. |
-| Clear output | One decision card: verdict, why, the checks that passed or failed, and the exact call that will run |
-
-**Our own additions, after the four above** (token efficiency and production safety are Track 4 criteria; the rest are our own rules):
-- **Token efficiency:** Flagsmith already computes the probabilities. Our code reads them and applies the rules; the LLM only writes the explanation from a compact JSON summary. Tokens are printed on every run.
+**Our own additions** (token efficiency and production safety are Track 4 criteria; the rest are our own rules):
+- **Token efficiency:** Flagsmith already computes the probabilities. Flag Pilot's code applies the rules and makes no LLM calls; the agent layer explains a compact JSON summary, and `/cost` shows the session's usage.
 - **Safety:** dry-run by default, `audit.jsonl`, no secrets in the repo.
 - **Real data only:** we never demo against fabricated results.
 

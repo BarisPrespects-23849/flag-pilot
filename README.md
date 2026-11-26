@@ -1,19 +1,106 @@
 # Flag Pilot
 
-**Flagsmith's setup prompt gets an experiment running. Flag Pilot takes it from there.**
+**Experiments end, but the winner often isn't shipped cleanly, and stale flags and dead code pile
+up.** Flag Pilot is for teams running Flagsmith experiments. It takes a finished experiment from
+results to rollout to cleanup, and stops to ask a person before anything that matters.
 
-It reads the real results, explains them in plain English, asks a human, ships the winner and
-checks that users actually get it. Then it opens a pull request that removes the dead code, and
-archives the flag once a human has merged it.
+It is a command-line tool, `flagpilot`, with an agent layer on top: two Claude Code slash commands,
+`/ship-winner` and `/cleanup-flag`, that explain what the tool decided and relay your approval.
 
-Built for Flagsmith Track 2, *AI Agents and Feature Flags*.
+Built for Flagsmith Track 2, *AI Agents and Feature Flags*. Flagsmith's setup prompt gets an
+experiment running; Flag Pilot takes it from there.
 
-- **Code decides.** Eight fixed rules produce the verdict. No LLM computes or changes it.
-- **A human approves.** Shipping is irreversible, so you type the experiment's name.
-- **Tried for real.** `ship --apply` ran end to end on a throwaway experiment in Flagsmith Cloud:
-  10 of 10 sample identities got the winner 7 seconds after the call. The users were simulated.
-  A dress rehearsal then ran the whole chain: ship, a real cleanup pull request, a human merge
-  and `retire`.
+## Why it's new
+
+In our smoke test, Flagsmith's `complete/` call ended an experiment that had **no data**: no
+traffic and no computed results. The API doesn't check results before it ends an experiment and
+rolls out a variant. Flag Pilot adds the checks:
+
+- **8 fixed rules** decide the verdict. No LLM computes or changes it.
+- **Its own sample-ratio-mismatch (SRM) check** when Flagsmith returns no p-value.
+- **Typed approval:** shipping is irreversible, so you type the experiment's name.
+- **A cleanup pull request that a human merges.** Flag Pilot never merges it.
+
+## How Flagsmith is used
+
+The flag serves the variants, the experiment measures them, and Flagsmith computes the results
+that Flag Pilot acts on.
+
+**CLI v2** (`flagsmith`)
+
+| Command | Used for |
+|---|---|
+| `login`, `init` | Setup, run by you |
+| `feature create <flag> --value control --enabled` | Create the flag |
+| `feature variant add <flag> --value --key --weight 0` | Add the keyed variant |
+| `feature get <flag>` | Read the default value and enabled state before cleanup |
+| `evaluate <flag> --identity <id> --trait flagpilot_verify=1` | Confirm users get the winner |
+| `feature update <flag> --archive` | Retire the flag |
+| `api <path>` (`-X POST`, `--input -`, `--jq`) | Every endpoint below |
+
+**REST API** (`E` = `api/v1/environments/<env_key>`)
+
+| Method and endpoint | Used for |
+|---|---|
+| `GET api/v1/projects/<project id>/features/?search=<flag>` | Find the flag, check whether it is archived |
+| `GET`, `POST E/experiment-metrics/` | Find or create the conversion metric |
+| `GET`, `POST E/experiments/` | List or create experiments |
+| `GET E/experiments/<id>/` | Status, variants and rollout decision |
+| `GET E/warehouse-connections/` | Refuse to start without a warehouse |
+| `POST E/experiments/<id>/start/` | Start the experiment |
+| `GET E/experiments/<id>/exposures/`, `POST …/exposures/refresh/` | Identities per arm |
+| `GET E/experiments/<id>/results/`, `POST …/results/refresh/` | Chance to win, lift, conversions |
+| `POST E/experiments/<id>/complete/` | End the experiment and roll out the winner |
+
+**Python SDK** (demo shop, [`demo/app.py`](demo/app.py))
+
+| Call | Used for |
+|---|---|
+| `Flagsmith(environment_key=..., enable_events=True, default_flag_handler=...)` | Client with events, and a `control` fallback if Flagsmith is unreachable |
+| `get_experiment_flag("checkout_button", identifier=user_id)` | Serve the variant and record the exposure |
+| `track_event("purchase", identifier=user_id)` | Record the conversion |
+| `close()` | Send buffered events at shutdown |
+
+The simulator also calls `flush_events()`. The MCP server isn't used for experiments, because it
+can't start them.
+
+## Time saved
+
+| Step | By hand | With Flag Pilot |
+|---|---|---|
+| 1. Dashboard review | Read the numbers, judge sample size and traffic split | `/ship-winner <id>`: one card with all 8 rules |
+| 2. End the experiment | End it in the dashboard | Same command: say yes, then type the name |
+| 3. Roll out | Pick the winner, check that users get it | Same command: it polls 10 identities |
+| 4. Edit the code | Find each flag read, delete the losing path, fix tests | `/cleanup-flag <id>`: say yes |
+| 5. Open a pull request | Write it up with the evidence | Same command |
+| Merge | You review and merge | You review and merge |
+| 6. Archive the flag | Remember to do it | `flagpilot retire <flag> --apply`: type the flag name |
+
+Six manual steps become two slash commands, your merge and `retire`. In the dress rehearsal,
+verifying the rollout took 9 seconds and going from cleanup branch to open pull request took 38.
+We haven't timed the manual route.
+
+## Proof
+
+The dress rehearsal ran the whole chain on a throwaway flag in Flagsmith Cloud. **The users were
+simulated;** Flagsmith assigned the arms and computed the results.
+
+- Experiment `626`: `control` 28 of 292 (9.6%), `new` 63 of 308 (20.5%), 99.4% chance to win.
+  These numbers matched the Flagsmith dashboard.
+- Shipped after the typed name; 10 of 10 sample identities got `new`.
+- [PR #1](https://github.com/BarisPrespects-23849/flag-pilot/pull/1), the cleanup pull request,
+  was opened by Flag Pilot and **merged by a human**. The flag was then archived with `retire`.
+
+The screenshots show PR #1 before it was merged.
+
+![Pull request 1, "Remove flagpilot-dress: ship new (experiment 626)", open and ready to merge](docs/img/pr-1-open.png)
+*The cleanup pull request, waiting for a person to merge it.*
+
+![Pull request 1 body: eight passing rules, results per arm and the list of changed files](docs/img/pr-1-rules.png)
+*The evidence travels with the code: all 8 rules, the results and what changed.*
+
+![Pull request 1 body: table of audit log entries and an after-merge checklist](docs/img/pr-1-audit.png)
+*The audit trail of approvals and calls, and the next step after merging.*
 
 ## Lifecycle
 
@@ -33,9 +120,9 @@ flowchart TD
 
 | Criterion | How Flag Pilot earns it |
 |---|---|
-| CLI / API / MCP use | Flagsmith CLI v2, the Experiments, Metrics, Results and Exposures APIs, and the Python SDK with events. MCP is not used for experiments because it can't start them. |
-| Saves time | Reading results, deciding and rolling out is one command (`/ship-winner <id>`) and two replies. `/cleanup-flag <id>` turns the result into a pull request. |
-| Human approves changes | Tiered gates. Shipping needs the typed experiment name, archiving needs the typed flag name, and merging is yours. |
+| Flagsmith CLI, API or MCP server | CLI v2, the REST API and the Python SDK: see [How Flagsmith is used](#how-flagsmith-is-used) |
+| Saves real time | Two slash commands replace the review, rollout, code edit and pull request: see [Time saved](#time-saved) |
+| A human approves changes | Tiered gates. Shipping needs the typed experiment name, archiving needs the typed flag name, and merging is yours. |
 | Clear output | One decision card: verdict, per-arm numbers, every rule with pass or fail, and the exact call that would run. |
 
 Token use: Flag Pilot's own code makes no LLM calls. Claude Code explains the decision or the diff,
@@ -107,9 +194,6 @@ marked for the flag. Mentions in tooling, docs and fixtures are listed and left 
 - **Own SRM check.** When Flagsmith returns no SRM p-value, Flag Pilot computes a chi-square test from the exposure counts. The card shows which source was used.
 - **Secrets** live only in `.env`, which is git-ignored. Environment keys are redacted in logged paths.
 
-Why this matters: Flagsmith's `complete/` call accepted an experiment with no traffic and no
-results refresh in our smoke test, so these rules are the safety net.
-
 ## Quickstart
 
 You need [uv](https://docs.astral.sh/uv/), Flagsmith CLI v2 (from `get.flagsmith.com`; tested with
@@ -169,7 +253,7 @@ Demo shop: `uv run uvicorn demo.app:app --port 8800`, then open
 - **Manual edits are lightly tested.** `cleanup --patch` has run only on a throwaway local repository with GitHub faked.
 - **Narrow rewriter.** It handles Python reads that feed an `if`. It can leave unused parameters or helpers behind.
 - **One repository.** `cleanup` and `retire` can't see other services that read the flag.
-- **Archiving doesn't stop evaluation.** About a minute after archiving, `flagsmith evaluate` still returned both flags' values.
+- **Archiving doesn't stop evaluation.** About a minute after archiving, `flagsmith evaluate` still returned the archived flags' values.
 - **One environment.** `retire` checks experiments in the environment in `flagsmith.json`, but archiving affects the whole project.
 - **Traffic is simulated.** The users and purchase rates are invented in `flagpilot/simulate.py`. Flagsmith assigns arms and computes the results.
 - **Rate limits.** Results can be refreshed once every 5 minutes, and exposure refresh is limited too. `recommend --refresh` skips a limited step and shows the existing data.

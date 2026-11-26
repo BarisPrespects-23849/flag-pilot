@@ -87,11 +87,15 @@ simulated;** Flagsmith assigned the arms and computed the results.
 
 - Experiment `626`: `control` 28 of 292 (9.6%), `new` 63 of 308 (20.5%), 99.4% chance to win.
   These numbers matched the Flagsmith dashboard.
+
+  ![Flagsmith dashboard for experiment flagpilot-dress: status Completed, new rolled out to everyone, 600 users enrolled, 99% chance to be best, lift +113.3%, with 292 control and 308 new exposures](docs/img/dashboard-626.png)
+  *Flagsmith dashboard for the rehearsal experiment: Completed, new rolled out to everyone, 99% chance to win, 292/308 exposures.*
+
 - Shipped after the typed name; 10 of 10 sample identities got `new`.
 - [PR #1](https://github.com/BarisPrespects-23849/flag-pilot/pull/1), the cleanup pull request,
   was opened by Flag Pilot and **merged by a human**. The flag was then archived with `retire`.
 
-The screenshots show PR #1 before it was merged.
+The next three screenshots show PR #1 before it was merged.
 
 ![Pull request 1, "Remove flagpilot-dress: ship new (experiment 626)", open and ready to merge](docs/img/pr-1-open.png)
 *The cleanup pull request, waiting for a person to merge it.*

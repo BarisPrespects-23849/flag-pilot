@@ -1,9 +1,9 @@
-"""Start the checkout experiment and refresh its exposures and results.
+"""Start an experiment and refresh its exposures and results.
 
 Dry-run is the default. --apply makes exactly one state-changing call.
 Ending the experiment is deliberately not implemented here.
 
-    python -m flagpilot.lifecycle {start,exposures-refresh,results-refresh} [--apply --approved-by NAME]
+    python -m flagpilot.lifecycle {start,exposures-refresh,results-refresh} --target {checkout,rehearsal} [--apply --approved-by NAME]
 """
 
 import argparse
@@ -20,13 +20,13 @@ STATE_PATH = config.ROOT / ".flagpilot_state.json"
 RESULTS_REFRESH_INTERVAL = timedelta(minutes=5)
 
 
-def current_experiment() -> dict:
+def current_experiment(target: config.Target = config.CHECKOUT) -> dict:
     matches = [
         e for e in provision.experiments()
-        if e["name"] == config.EXPERIMENT_NAME and e["feature"] == config.FLAG_NAME
+        if e["name"] == target.experiment and e["feature"] == target.flag
     ]
     if len(matches) != 1:
-        raise Blocked(f"Expected one experiment '{config.EXPERIMENT_NAME}', found {len(matches)}.")
+        raise Blocked(f"Expected one experiment '{target.experiment}', found {len(matches)}.")
     return matches[0]
 
 
@@ -54,7 +54,7 @@ def _post(experiment_id: int, suffix: str) -> list[str]:
 
 
 def plan(step: str, experiment: dict | None = None) -> Plan:
-    """`experiment` ({id, status}) defaults to the configured checkout experiment."""
+    """`experiment` ({id, status}) defaults to the checkout experiment."""
     experiment = experiment or current_experiment()
     eid, status = experiment["id"], experiment["status"]
     if step == "start":
@@ -90,13 +90,15 @@ def run(step: str, *, apply: bool, approved_by: str | None,
 def main(argv: list[str] | None = None) -> int:
     parser = argparse.ArgumentParser(description=__doc__.splitlines()[0])
     parser.add_argument("step", choices=["start", "exposures-refresh", "results-refresh"])
+    parser.add_argument("--target", choices=config.TARGETS, required=True)
     parser.add_argument("--apply", action="store_true", help="make the real call")
     parser.add_argument("--approved-by", help="who approved this call (required with --apply)")
     args = parser.parse_args(argv)
     if args.apply and not args.approved_by:
         parser.error("--apply requires --approved-by")
     try:
-        run(args.step, apply=args.apply, approved_by=args.approved_by)
+        experiment = current_experiment(config.TARGETS[args.target])
+        run(args.step, apply=args.apply, approved_by=args.approved_by, experiment=experiment)
     except (Blocked, cli.CliError) as error:
         print(f"BLOCKED: {error}", file=sys.stderr)
         return 1

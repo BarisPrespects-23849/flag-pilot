@@ -92,9 +92,10 @@ Flagsmith's setup prompt covers 1–3. **Flag Pilot owns step 4 and what comes a
 
 ### Flag Pilot commands
 - `uv run flagpilot recommend <id> [--json] [--refresh]`: verdict from the real payload; thresholds in `flagpilot.toml`. Run on `570`: `SHIP_VARIANT` (`buy_now`), SRM p=0.288 computed by Flag Pilot [ran].
-- `uv run flagpilot ship <id>` is a dry-run (run on `570`) [ran]. `--apply` asks for the experiment name, or takes `--confirm "<name>" --expect-winner <key>`. **`ship --apply` has never been run against Flagsmith.** Keep `570` for the demo.
+- `uv run flagpilot ship <id>` is a dry-run (run on `570`) [ran]. `--apply` asks for the experiment name, or takes `--confirm "<name>" --expect-winner <key>`. `ship --apply` is verified end to end on `592` (§6.3) [ran]. Keep `570` for the demo.
 - Agent layer: `/ship-winner <id>` (`.claude/commands/ship-winner.md`). No paid LLM API; the `anthropic` dependency was removed.
 - The `control` rollout decision of `complete/` is untested; only `variant` was smoke-tested.
+- `uv run python -m flagpilot.{provision,lifecycle,simulate} … --target {checkout,rehearsal}`: `--target` is required. Each target has its own user prefix (`sim-user`, `rehearsal-user`) because metric `565` counts every `purchase` event [ran: `rehearsal`; `checkout` tests only].
 
 ### Lifecycle
 
@@ -251,7 +252,17 @@ An inconclusive result means the agent recommends **keep running** and does noth
    - **The rollout is a 100% variant weight; the flag's default value stays `control` for unidentified requests** (`evaluate` without an identity).
    - After completion the SDK returns no experiment metadata, so no further exposures are recorded. Production still served `control` (5 identities).
    - **Accepted with the warehouse `pending_connection`, no simulated traffic and no results refresh**, so `complete/` does not check results: Flag Pilot's ship gates are the only safety net.
+
+   **`ship --apply` verified end to end on `592` [ran]** (2026-11-26, through `/ship-winner`):
+   - Rehearsal: flag `flagpilot-rehearsal` (`305225`), variant `buy_now` (`37123`), experiment `592`, metric `565`, 600 SIMULATED users (rates 0.10 / 0.16, seed 1).
+   - Flagsmith's results matched the delivered counts: control 27/300, `buy_now` 53/300; `SHIP_VARIANT`, chance to win 98.6%.
+   - `complete/` accepted; `status: completed`, `ended_at` set, `rollout_decision: variant`, `rollout_variant: 37123`, `experiment_rollout: null`.
+   - 10/10 verify identities got `buy_now` 7 s after the call (before the simulator run: 6 `buy_now`, 4 `control`). `evaluate` without an identity still returned `control`.
+   - `audit.jsonl` has the dry-run and apply of each provisioning, start, simulator and ship step.
+   - `/ship-winner` stopped, changing nothing, on an empty id, on "no", and on the experiment name sent before the dry-run.
 4. **Refresh at most once every 5 minutes** [doc].
+   `exposures/refresh/` is limited too: 12 s after a refresh it answered 429, `A refresh was requested recently… Expected available in 288 seconds.` `recommend --refresh` now skips a rate-limited step and carries on [ran].
+   On `592`, a refresh seconds after the simulator finished already counted all 600 users, and results about 1 minute later included every conversion [ran].
 5. **Every variant needs `--key`**, or no exposures are recorded. `control` is reserved. `--variants` on `feature create` can't set keys [doc].
 6. **Identify before getting the flag.** Use the same identifier for exposure and conversion. Event names are case-sensitive [doc].
 7. **Events** older than 10 days or more than 24 hours in the future are rejected. A batch over 2 MiB is rejected whole [doc].

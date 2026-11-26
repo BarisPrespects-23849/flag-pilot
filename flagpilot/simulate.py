@@ -1,11 +1,11 @@
-"""Send SIMULATED users through the checkout experiment.
+"""Send SIMULATED users through an experiment.
 
 The users and their purchase rates are made up here. Flagsmith assigns the arms and
 computes the results, but the behaviour behind them is simulated: say so in any demo.
 
 Dry-run is the default and sends nothing.
 
-    python -m flagpilot.simulate [--users 400] [--apply --approved-by NAME]
+    python -m flagpilot.simulate --target {checkout,rehearsal} [--users 400] [--apply --approved-by NAME]
 """
 
 import argparse
@@ -63,6 +63,7 @@ def simulate(
     seed: int,
     sent: Counter | None = None,
     sdk_warnings: list[str] | None = None,
+    flag_name: str = config.FLAG_NAME,
 ) -> Counter:
     """Return counts of what was delivered, per arm. Raises on the first lost event.
 
@@ -85,7 +86,7 @@ def simulate(
 
     try:
         for user_id in ids:
-            flag = client.get_experiment_flag(config.FLAG_NAME, identifier=user_id)
+            flag = client.get_experiment_flag(flag_name, identifier=user_id)
             enrolled = flag.enabled and getattr(flag, "experiment", None)
             if not (enrolled and flag.experiment.in_experiment and flag.variant):
                 sent["not_enrolled"] += 1
@@ -103,9 +104,10 @@ def simulate(
     return sent
 
 
-def experiment_is_running() -> bool:
+def experiment_is_running(target: config.Target) -> bool:
     return any(
-        e["name"] == config.EXPERIMENT_NAME and e["status"] == "running"
+        e["name"] == target.experiment and e["feature"] == target.flag
+        and e["status"] == "running"
         for e in provision.experiments()
     )
 
@@ -119,8 +121,9 @@ def probability(text: str) -> float:
 
 def main(argv: list[str] | None = None) -> int:
     parser = argparse.ArgumentParser(description=__doc__.splitlines()[0])
+    parser.add_argument("--target", choices=config.TARGETS, required=True)
     parser.add_argument("--users", type=int, default=400)
-    parser.add_argument("--prefix", default="sim-user")
+    parser.add_argument("--prefix", help="must start with the target's own user prefix")
     parser.add_argument("--seed", type=int, default=1)
     parser.add_argument("--control-rate", type=probability, default=0.10)
     parser.add_argument("--variant-rate", type=probability, default=0.16)
@@ -132,10 +135,15 @@ def main(argv: list[str] | None = None) -> int:
     if args.users < 1:
         parser.error("--users must be at least 1")
 
+    target = config.TARGETS[args.target]
+    prefix = args.prefix or target.user_prefix
+    if not prefix.startswith(target.user_prefix):
+        parser.error(f"--prefix for {args.target} must start with '{target.user_prefix}'")
+
     rates = {config.CONTROL_VALUE: args.control_rate, config.VARIANT_VALUE: args.variant_rate}
-    ids = user_ids(args.users, args.prefix)
+    ids = user_ids(args.users, prefix)
     plan = {
-        "flag": config.FLAG_NAME,
+        "flag": target.flag,
         "event": config.CONVERSION_EVENT,
         "users": args.users,
         "identifiers": [ids[0], ids[-1]],
@@ -143,21 +151,21 @@ def main(argv: list[str] | None = None) -> int:
         "seed": args.seed,
     }
     log = dict(action="simulate_traffic", tier=TIER, method="SDK",
-               path=f"simulate {config.FLAG_NAME}", body=plan)
+               path=f"simulate {target.flag}", body=plan)
     print(f"{'APPLY' if args.apply else 'DRY-RUN'}  tier {TIER}  simulated traffic: {plan}")
     if not args.apply:
         audit.record(**log, dry_run=True, status="planned")
         return 0
 
-    if not experiment_is_running():
-        print(f"BLOCKED: experiment '{config.EXPERIMENT_NAME}' is not running.", file=sys.stderr)
+    if not experiment_is_running(target):
+        print(f"BLOCKED: experiment '{target.experiment}' is not running.", file=sys.stderr)
         audit.record(**log, dry_run=False, approved_by=args.approved_by, status="blocked")
         return 1
     sent: Counter = Counter()
     sdk_warnings: list[str] = []
     status = "failed"
     try:
-        simulate(make_client(), ids, rates, args.seed, sent, sdk_warnings)
+        simulate(make_client(), ids, rates, args.seed, sent, sdk_warnings, target.flag)
         status = "success"
     finally:
         audit.record(**log, dry_run=False, approved_by=args.approved_by, status=status)

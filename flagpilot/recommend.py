@@ -56,7 +56,7 @@ def refresh(experiment_id: int, timeout_seconds: float = 60) -> None:
                 lifecycle.run(step, apply=True, approved_by="auto (tier 0)",
                               experiment=experiment)
                 refreshed_results = step == "results-refresh"
-            except Blocked as reason:
+            except (Blocked, cli.RateLimited) as reason:
                 print(f"{step} skipped: {reason}")
         if not refreshed_results:
             return

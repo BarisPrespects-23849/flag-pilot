@@ -2,6 +2,7 @@
 
 import json
 import os
+from dataclasses import dataclass
 from pathlib import Path
 
 from dotenv import load_dotenv
@@ -17,6 +18,30 @@ CONVERSION_EVENT = "purchase"  # case-sensitive; must match the metric definitio
 METRIC_NAME = "checkout-purchase"
 EXPERIMENT_NAME = "checkout-button-buy-now"
 HYPOTHESIS = "A 'Buy now' checkout button increases the share of users who purchase."
+
+
+@dataclass(frozen=True)
+class Target:
+    """What provisioning, lifecycle and the simulator act on. Variant and metric are shared."""
+
+    flag: str
+    experiment: str
+    hypothesis: str
+    description: str
+    # The metric counts every purchase event, so targets must never share identifiers.
+    user_prefix: str
+
+
+CHECKOUT = Target(
+    FLAG_NAME, EXPERIMENT_NAME, HYPOTHESIS,
+    "Checkout button copy (Flag Pilot experiment)", "sim-user",
+)
+REHEARSAL = Target(
+    "flagpilot-rehearsal", "flagpilot-rehearsal",
+    "Rehearsal of the ship flow on a throwaway flag, with simulated users.",
+    "Throwaway flag to rehearse flagpilot ship. Archive after the demo.", "rehearsal-user",
+)
+TARGETS = {"checkout": CHECKOUT, "rehearsal": REHEARSAL}
 
 
 def project_config() -> dict:

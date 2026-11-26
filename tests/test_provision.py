@@ -26,19 +26,19 @@ def test_apply_makes_one_call(calls):
 
 def test_apply_requires_an_approver(calls):
     with pytest.raises(SystemExit):
-        provision.main(["flag", "--apply"])
+        provision.main(["flag", "--target", "checkout", "--apply"])
     assert calls == []
 
 
 def test_experiment_is_blocked_while_prerequisites_are_missing(monkeypatch):
-    monkeypatch.setattr(provision, "find_feature", lambda: None)
+    monkeypatch.setattr(provision, "find_feature", lambda target: None)
     monkeypatch.setattr(provision, "find_metric", lambda: None)
     with pytest.raises(provision.Blocked):
         provision.plan_experiment()
 
 
 def test_experiment_plan_never_starts_it(monkeypatch):
-    monkeypatch.setattr(provision, "find_feature", lambda: {
+    monkeypatch.setattr(provision, "find_feature", lambda target: {
         "id": 1, "multivariate_options": [{"id": 2, "key": config.VARIANT_KEY}]})
     monkeypatch.setattr(provision, "find_metric", lambda: {
         "id": 3, "definition": {"event": config.CONVERSION_EVENT}})

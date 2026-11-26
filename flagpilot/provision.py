@@ -3,7 +3,7 @@
 Dry-run is the default. --apply makes exactly one state-changing call.
 Nothing here starts the experiment, but creating it already changes what is served.
 
-    python -m flagpilot.provision {flag,variant,metric,experiment} [--apply --approved-by NAME]
+    python -m flagpilot.provision {flag,variant,metric,experiment} --target {checkout,rehearsal} [--apply --approved-by NAME]
 """
 
 import argparse
@@ -37,13 +37,13 @@ class Plan:
         return cli.redact(self.args[1])
 
 
-def find_feature() -> dict | None:
+def find_feature(target: config.Target = config.CHECKOUT) -> dict | None:
     project = config.project_config()["project"]
     features = cli.get(
-        f"api/v1/projects/{project}/features/?search={quote(config.FLAG_NAME)}",
+        f"api/v1/projects/{project}/features/?search={quote(target.flag)}",
         jq="[.results[] | {id, name, multivariate_options}]",
     )
-    return next((f for f in features if f["name"] == config.FLAG_NAME), None)
+    return next((f for f in features if f["name"] == target.flag), None)
 
 
 def find_variant(feature: dict) -> dict | None:
@@ -65,25 +65,25 @@ def experiments() -> list[dict]:
     )
 
 
-def plan_flag() -> Plan:
-    if find_feature():
-        raise Blocked(f"Flag '{config.FLAG_NAME}' already exists.")
+def plan_flag(target: config.Target = config.CHECKOUT) -> Plan:
+    if find_feature(target):
+        raise Blocked(f"Flag '{target.flag}' already exists.")
     return Plan(
         action="feature_create",
         method="CLI",
         args=[
-            "feature", "create", config.FLAG_NAME,
+            "feature", "create", target.flag,
             "--value", config.CONTROL_VALUE,
             "--enabled",
-            "--description", "Checkout button copy (Flag Pilot experiment)",
+            "--description", target.description,
         ],
         effect="Creates a project-wide flag, enabled in every environment "
         f"(including Production), serving '{config.CONTROL_VALUE}' to everyone.",
     )
 
 
-def plan_variant() -> Plan:
-    feature = find_feature()
+def plan_variant(target: config.Target = config.CHECKOUT) -> Plan:
+    feature = find_feature(target)
     if not feature:
         raise Blocked("The flag does not exist yet. Run the 'flag' step first.")
     if find_variant(feature):
@@ -92,7 +92,7 @@ def plan_variant() -> Plan:
         action="feature_variant_add",
         method="CLI",
         args=[
-            "feature", "variant", "add", config.FLAG_NAME,
+            "feature", "variant", "add", target.flag,
             "--value", config.VARIANT_VALUE,
             "--key", config.VARIANT_KEY,
             "--weight", "0",
@@ -101,7 +101,7 @@ def plan_variant() -> Plan:
     )
 
 
-def plan_metric() -> Plan:
+def plan_metric(target: config.Target = config.CHECKOUT) -> Plan:
     if find_metric():
         raise Blocked(f"Metric '{config.METRIC_NAME}' already exists.")
     return Plan(
@@ -118,8 +118,8 @@ def plan_metric() -> Plan:
     )
 
 
-def plan_experiment() -> Plan:
-    feature = find_feature()
+def plan_experiment(target: config.Target = config.CHECKOUT) -> Plan:
+    feature = find_feature(target)
     variant = find_variant(feature) if feature else None
     metric = find_metric()
     if not (feature and variant and metric):
@@ -128,7 +128,7 @@ def plan_experiment() -> Plan:
         raise Blocked("The existing metric tracks a different event name.")
     active = [
         e for e in experiments()
-        if e["feature"] == config.FLAG_NAME and e["status"] != "completed"
+        if e["feature"] == target.flag and e["status"] != "completed"
     ]
     if active:
         raise Blocked(f"The flag already has an active experiment (id {active[0]['id']}).")
@@ -138,8 +138,8 @@ def plan_experiment() -> Plan:
         args=["api", cli.env_path("experiments/"), "-X", "POST", "--input", "-"],
         body={
             "feature": feature["id"],
-            "name": config.EXPERIMENT_NAME,
-            "hypothesis": config.HYPOTHESIS,
+            "name": target.experiment,
+            "hypothesis": target.hypothesis,
             "metrics": [{"metric": metric["id"], "expected_direction": "increase"}],
             "experiment_rollout": {
                 "enabled": True,
@@ -205,13 +205,15 @@ def execute(plan: Plan, *, apply: bool, approved_by: str | None) -> object:
 def main(argv: list[str] | None = None) -> int:
     parser = argparse.ArgumentParser(description=__doc__.splitlines()[0])
     parser.add_argument("step", choices=STEPS)
+    parser.add_argument("--target", choices=config.TARGETS, required=True)
     parser.add_argument("--apply", action="store_true", help="make the real call")
     parser.add_argument("--approved-by", help="who approved this call (required with --apply)")
     args = parser.parse_args(argv)
     if args.apply and not args.approved_by:
         parser.error("--apply requires --approved-by")
     try:
-        execute(STEPS[args.step](), apply=args.apply, approved_by=args.approved_by)
+        plan = STEPS[args.step](config.TARGETS[args.target])
+        execute(plan, apply=args.apply, approved_by=args.approved_by)
     except (Blocked, cli.CliError) as error:
         print(f"BLOCKED: {error}", file=sys.stderr)
         return 1

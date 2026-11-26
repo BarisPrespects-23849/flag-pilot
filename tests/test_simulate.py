@@ -50,13 +50,15 @@ def test_a_retried_send_is_reported_but_does_not_stop_the_run():
 def test_dry_run_sends_nothing(monkeypatch, tmp_path):
     monkeypatch.setattr(simulate.audit, "AUDIT_PATH", tmp_path / "audit.jsonl")
     monkeypatch.setattr(simulate, "make_client", lambda: pytest.fail("client created"))
-    assert simulate.main(["--users", "3"]) == 0
+    assert simulate.main(["--target", "checkout", "--users", "3"]) == 0
     assert '"dry_run": true' in (tmp_path / "audit.jsonl").read_text()
 
 
 def test_apply_is_blocked_unless_experiment_is_running(monkeypatch, tmp_path):
     monkeypatch.setattr(simulate.audit, "AUDIT_PATH", tmp_path / "audit.jsonl")
     monkeypatch.setattr(simulate.provision, "experiments", lambda: [
-        {"name": config.EXPERIMENT_NAME, "status": "created"}])
+        {"name": config.EXPERIMENT_NAME, "feature": config.FLAG_NAME,
+         "status": "created"}])
     monkeypatch.setattr(simulate, "make_client", lambda: pytest.fail("client created"))
-    assert simulate.main(["--apply", "--approved-by", "test"]) == 1
+    assert simulate.main(
+        ["--target", "checkout", "--apply", "--approved-by", "test"]) == 1

@@ -11,6 +11,10 @@ class CliError(RuntimeError):
     pass
 
 
+class RateLimited(CliError):
+    """Flagsmith answered 429: the same request will be accepted later."""
+
+
 def _execute(args: list[str], body: object = None) -> subprocess.CompletedProcess:
     result = subprocess.run(
         ["flagsmith", *args, "--no-input"],
@@ -22,7 +26,9 @@ def _execute(args: list[str], body: object = None) -> subprocess.CompletedProces
     )
     if result.returncode != 0:
         detail = (result.stderr or result.stdout).strip()[:500]
-        raise CliError(redact(f"flagsmith {' '.join(args[:3])} failed: {detail}"))
+        limited = "429 Too Many Requests" in f"{result.stderr}{result.stdout}"
+        error = RateLimited if limited else CliError
+        raise error(redact(f"flagsmith {' '.join(args[:3])} failed: {detail}"))
     return result
 
 

@@ -3,7 +3,7 @@
 Dry-run is the default. --apply makes exactly one state-changing call.
 Nothing here starts the experiment, but creating it already changes what is served.
 
-    python -m flagpilot.provision {flag,variant,metric,experiment} --target {checkout,rehearsal} [--apply --approved-by NAME]
+    python -m flagpilot.provision {flag,variant,metric,experiment} --target TARGET [--apply --approved-by NAME]
 """
 
 import argparse
@@ -46,9 +46,9 @@ def find_feature(target: config.Target = config.CHECKOUT) -> dict | None:
     return next((f for f in features if f["name"] == target.flag), None)
 
 
-def find_variant(feature: dict) -> dict | None:
+def find_variant(feature: dict, target: config.Target = config.CHECKOUT) -> dict | None:
     options = feature.get("multivariate_options") or []
-    return next((o for o in options if o.get("key") == config.VARIANT_KEY), None)
+    return next((o for o in options if o.get("key") == target.variant_key), None)
 
 
 def find_metric() -> dict | None:
@@ -86,15 +86,15 @@ def plan_variant(target: config.Target = config.CHECKOUT) -> Plan:
     feature = find_feature(target)
     if not feature:
         raise Blocked("The flag does not exist yet. Run the 'flag' step first.")
-    if find_variant(feature):
-        raise Blocked(f"Variant '{config.VARIANT_KEY}' already exists.")
+    if find_variant(feature, target):
+        raise Blocked(f"Variant '{target.variant_key}' already exists.")
     return Plan(
         action="feature_variant_add",
         method="CLI",
         args=[
             "feature", "variant", "add", target.flag,
-            "--value", config.VARIANT_VALUE,
-            "--key", config.VARIANT_KEY,
+            "--value", target.variant_value,
+            "--key", target.variant_key,
             "--weight", "0",
         ],
         effect="Adds a keyed variant at 0% weight. Nobody is served it.",
@@ -120,7 +120,7 @@ def plan_metric(target: config.Target = config.CHECKOUT) -> Plan:
 
 def plan_experiment(target: config.Target = config.CHECKOUT) -> Plan:
     feature = find_feature(target)
-    variant = find_variant(feature) if feature else None
+    variant = find_variant(feature, target) if feature else None
     metric = find_metric()
     if not (feature and variant and metric):
         raise Blocked("The flag, keyed variant and metric must all exist first.")

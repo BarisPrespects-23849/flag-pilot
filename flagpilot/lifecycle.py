@@ -3,7 +3,7 @@
 Dry-run is the default. --apply makes exactly one state-changing call.
 Ending the experiment is deliberately not implemented here.
 
-    python -m flagpilot.lifecycle {start,exposures-refresh,results-refresh} --target {checkout,rehearsal} [--apply --approved-by NAME]
+    python -m flagpilot.lifecycle {start,exposures-refresh,results-refresh} --target TARGET [--apply --approved-by NAME]
 """
 
 import argparse

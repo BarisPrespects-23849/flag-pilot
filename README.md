@@ -177,7 +177,7 @@ Demo shop: `uv run uvicorn demo.app:app --port 8800`, then open
 - **Undocumented endpoint.** `complete/` is in Flagsmith's API spec but not its docs.
 - **Typed name is a string check.** The code can't tell who typed `--confirm`. `/ship-winner` instructs the agent to pass only your own reply.
 - **Verification is a sample.** 10 identities, in the one environment in `flagsmith.json`. Rollout took about 15 seconds in the smoke test.
-- **Fixed names.** Flag, metric and experiment names for provisioning are set in `flagpilot/config.py`.
+- **One metric for provisioning.** Every target shares one `purchase` metric. `checkout` and `rehearsal` are set in `flagpilot/config.py`; more targets go in `flagpilot.toml` under `[targets.<name>]`.
 
 ## More
 

@@ -5,7 +5,7 @@ computes the results, but the behaviour behind them is simulated: say so in any 
 
 Dry-run is the default and sends nothing.
 
-    python -m flagpilot.simulate --target {checkout,rehearsal} [--users 400] [--apply --approved-by NAME]
+    python -m flagpilot.simulate --target TARGET [--users 400] [--apply --approved-by NAME]
 """
 
 import argparse
@@ -140,7 +140,7 @@ def main(argv: list[str] | None = None) -> int:
     if not prefix.startswith(target.user_prefix):
         parser.error(f"--prefix for {args.target} must start with '{target.user_prefix}'")
 
-    rates = {config.CONTROL_VALUE: args.control_rate, config.VARIANT_VALUE: args.variant_rate}
+    rates = {config.CONTROL_VALUE: args.control_rate, target.variant_value: args.variant_rate}
     ids = user_ids(args.users, prefix)
     plan = {
         "flag": target.flag,

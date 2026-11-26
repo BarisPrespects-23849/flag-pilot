@@ -260,6 +260,7 @@ An inconclusive result means the agent recommends **keep running** and does noth
    - 10/10 verify identities got `buy_now` 7 s after the call (before the simulator run: 6 `buy_now`, 4 `control`). `evaluate` without an identity still returned `control`.
    - `audit.jsonl` has the dry-run and apply of each provisioning, start, simulator and ship step.
    - `/ship-winner` stopped, changing nothing, on an empty id, on "no", and on the experiment name sent before the dry-run.
+   - Mistyped id (09:42 UTC): `/ship-winner 570` was sent when the rehearsal `592` was meant. The agent warned that `570` is the demo experiment and recommended "no"; the answer was no and `ship` was not run for it [ran]. The catch came from the agent layer using that session's instructions, not from a gate (`570` passed all 8 rules). The code's backstop is the typed experiment name.
 4. **Refresh at most once every 5 minutes** [doc].
    `exposures/refresh/` is limited too: 12 s after a refresh it answered 429, `A refresh was requested recently… Expected available in 288 seconds.` `recommend --refresh` now skips a rate-limited step and carries on [ran].
    On `592`, a refresh seconds after the simulator finished already counted all 600 users, and results about 1 minute later included every conversion [ran].
@@ -308,4 +309,4 @@ An inconclusive result means the agent recommends **keep running** and does noth
 - [x] Run `docker info` on the Mac: the daemon is not running, so start Docker Desktop and rerun before relying on the fallback [ran].
 - [x] End of day 1: stay on Cloud. The warehouse says `pending_connection` but results are computed (§6.8) [ran].
 - [ ] Pick the quarantine threshold for gate 5.
-- [ ] GitHub repo for the cleanup PR (`gh auth status` on the Mac).
+- [x] GitHub repo for the cleanup PR: private `BarisPrespects-23849/flag-pilot` created and `main` pushed (2026-11-26) [ran].

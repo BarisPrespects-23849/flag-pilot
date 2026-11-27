@@ -145,6 +145,15 @@ Setup: `gh repo clone` into a new temp directory, empty `HOME` (`env -i`), tools
 - The session's permission mode wasn't recorded. That ask rules still prompt in auto mode comes from <https://code.claude.com/docs/en/permissions>, not from a test.
 - The rules match text. A flag split by quotes, a name held in a variable, `curl` or a script isn't caught (wildcard matching simulated with a script). The docs say these rules aren't a security boundary.
 - Python's argument parser accepts `--appl` as `--apply`, so the rules match the shorter forms too [ran].
+
+### Refusal demo (2026-11-27, Development)
+Flag `flagpilot-refuse` (`306811`), variant `new` (`37984`), experiment `1194`, metric `565`, 30 SIMULATED users `refuse-user-*` (rates 0.10 / 0.16, seed 1). Target `refuse` in `flagpilot.toml` [ran].
+- Each step had a dry-run, then `--apply` after a Claude Code permission prompt. `variant --apply` printed `done (id: None)`, but `feature get` showed the variant [ran].
+- Delivered: control 12 exposed / 1 converted, `new` 18 / 6, 0 SDK warnings. Results refreshed seconds later matched exactly [ran].
+- `recommend 1194`: `KEEP_RUNNING`. Failed: `sample_size` (12), `conversions` (1) and `chance_to_win`. Flagsmith returned no `chance_to_win` for `new`, so the value is `unknown`. SRM p=0.273 (flagpilot) passed [ran].
+- `ship 1194 --apply --confirm flagpilot-refuse --expect-winner new`, after the permission prompt: `REFUSED: verdict is KEEP_RUNNING; rules not passing: sample_size, conversions, chance_to_win`, exit 2 [ran].
+- It made no `complete/` call: `audit.jsonl` has `ship_recommend` and `ship_refused`, and no `experiment_complete` for `1194`. A GET afterwards returned `status: running`, `ended_at: null`, `rollout_decision: null` [ran].
+- Left running on purpose. Compare §6.3: `complete/` accepted experiment `576` with no traffic.
 - `uv run python -m flagpilot.{provision,lifecycle,simulate} … --target {checkout,rehearsal}`: `--target` is required. Each target has its own user prefix (`sim-user`, `rehearsal-user`) because metric `565` counts every `purchase` event [ran: `rehearsal`; `checkout` tests only].
 
 ### Lifecycle

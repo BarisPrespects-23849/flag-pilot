@@ -92,6 +92,7 @@ simulated;** Flagsmith assigned the arms and computed the results.
   *Flagsmith dashboard for the rehearsal experiment: Completed, new rolled out to everyone, 99% chance to win, 292/308 exposures.*
 
 - Shipped after the typed name; 10 of 10 sample identities got `new`.
+- Flag Pilot refused to ship experiment 1194 with 30 users; Flagsmith's complete/ accepts an experiment with no data.
 - [PR #1](https://github.com/BarisPrespects-23849/flag-pilot/pull/1), the cleanup pull request,
   was opened by Flag Pilot and **merged by a human**. The flag was then archived with `retire`.
 

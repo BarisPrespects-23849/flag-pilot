@@ -195,10 +195,11 @@ def execute(plan: Plan, *, apply: bool, approved_by: str | None) -> object:
         **log, dry_run=False, approved_by=approved_by,
         status="success", response_id=response_id,
     )
-    detail = f"id: {response_id}"
+    detail = None if response_id is None else f"id: {response_id}"
     if plan.empty_response:
         detail = f"HTTP {response['http_status']}"
-    print(f"  done ({detail})")
+    # `feature variant add` returns no id, so print a bare "done", not "id: None".
+    print(f"  done ({detail})" if detail else "  done")
     return response
 
 

@@ -24,6 +24,20 @@ def test_apply_makes_one_call(calls):
     assert calls == [PLAN.args]
 
 
+def test_apply_prints_the_id(calls, capsys):
+    provision.execute(PLAN, apply=True, approved_by="test")
+    assert "  done (id: 9)" in capsys.readouterr().out
+
+
+@pytest.mark.parametrize("response", [None, "ok", {"key": "new"}])
+def test_apply_without_an_id_prints_plain_done(monkeypatch, tmp_path, capsys, response):
+    monkeypatch.setattr(provision.audit, "AUDIT_PATH", tmp_path / "audit.jsonl")
+    monkeypatch.setattr(provision.cli, "run", lambda args, **kw: response)
+    provision.execute(PLAN, apply=True, approved_by="test")
+    out = capsys.readouterr().out
+    assert "None" not in out and out.endswith("  done\n")
+
+
 def test_apply_requires_an_approver(calls):
     with pytest.raises(SystemExit):
         provision.main(["flag", "--target", "checkout", "--apply"])

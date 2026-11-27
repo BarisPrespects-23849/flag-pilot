@@ -200,20 +200,53 @@ marked for the flag. Mentions in tooling, docs and fixtures are listed and left 
 
 ## Quickstart
 
-You need [uv](https://docs.astral.sh/uv/), Flagsmith CLI v2 (from `get.flagsmith.com`; tested with
-2.0.0), a Flagsmith project with experimentation and a warehouse connection, and Claude Code for
-`/ship-winner`.
+Tested on macOS (Apple silicon) with uv 0.5.26, git 2.30.1 and Flagsmith CLI 2.0.0.
+
+You need:
+
+- git and [uv](https://docs.astral.sh/uv/). The project uses Python 3.12.
+- Flagsmith CLI v2: `curl -fsSL https://get.flagsmith.com | sh` (installs to `~/.local/bin`; check
+  that it is on your `PATH`).
+- For the live flow: a Flagsmith project with experimentation and a warehouse connection (we used
+  Flagsmith's managed warehouse).
+- For `cleanup` and `retire`: the GitHub CLI (`gh auth login`) and your own fork.
+- Optional: Claude Code, for `/ship-winner` and `/cleanup-flag`.
+
+### Install and test (no Flagsmith account needed)
 
 ```bash
+git clone https://github.com/BarisPrespects-23849/flag-pilot
+cd flag-pilot
 uv sync
-flagsmith login
-flagsmith init                 # writes flagsmith.json; replaces this repo's project binding
-cp -n .env.example .env        # then add your server-side SDK key
 uv run pytest
+uv run flagpilot --help
 ```
 
+To run `cleanup`, use a fork instead of the clone above:
+
+```bash
+gh repo fork BarisPrespects-23849/flag-pilot --clone
+cd flag-pilot
+gh repo set-default <your-user>/flag-pilot
+```
+
+### Connect your Flagsmith project
+
+```bash
+flagsmith login          # opens a browser; --no-browser prints the URL
+flagsmith init           # pick your project and Development environment
+cp -n .env.example .env
+```
+
+Don't skip `init`: the committed `flagsmith.json` points to our project. In `.env`, set
+`FLAGSMITH_SERVER_KEY` to a server-side key (`ser.…`) from **SDK Keys** in the same environment.
+Only the simulator and demo shop use it.
+
+### Run an experiment
+
 Set up an experiment. Each command is a dry-run; repeat it with `--apply --approved-by NAME` to
-run it, one step at a time and in this order:
+run it, one step at a time and in this order. Dry-run and apply each step before the next; later
+steps are blocked until earlier ones exist.
 
 ```bash
 uv run python -m flagpilot.provision flag       --target checkout
@@ -223,6 +256,9 @@ uv run python -m flagpilot.provision experiment --target checkout
 uv run python -m flagpilot.lifecycle start      --target checkout
 uv run python -m flagpilot.simulate             --target checkout --users 600
 ```
+
+Wait a few minutes before `recommend --refresh`. A new warehouse can take hours to show its first
+events. `KEEP_RUNNING` means a rule hasn't passed yet.
 
 Then decide and ship, using the experiment id printed when it was created:
 
@@ -248,6 +284,7 @@ Or, in Claude Code: `/ship-winner <id>`, then `/cleanup-flag <id>`.
 
 Demo shop: `uv run uvicorn demo.app:app --port 8800`, then open
 `http://127.0.0.1:8800/?user_id=alice`. A visit records a real exposure if the experiment is running.
+It needs the server key, and it reads `checkout_button` only until that flag's cleanup PR is merged.
 
 ## Known limits
 
@@ -267,6 +304,7 @@ Demo shop: `uv run uvicorn demo.app:app --port 8800`, then open
 - **Typed name is a string check.** The code can't tell who typed `--confirm`. `/ship-winner` instructs the agent to pass only your own reply.
 - **Verification is a sample.** 10 identities, in the one environment in `flagsmith.json`. Rollout took about 15 seconds in the smoke test.
 - **One metric for provisioning.** Every target shares one `purchase` metric. `checkout` and `rehearsal` are set in `flagpilot/config.py`; more targets go in `flagpilot.toml` under `[targets.<name>]`.
+- **The demo flag gets cleaned up.** After the demo, the checkout_button cleanup PR will be merged, so demo/app.py will no longer read the flag. The rehearsal (flagpilot-dress, PR #1) shows the full flow; to try it yourself, use your own flag and a `--target` in flagpilot.toml.
 
 ## More
 

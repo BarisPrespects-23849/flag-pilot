@@ -122,6 +122,21 @@ Flagsmith's setup prompt covers 1–3. **Flag Pilot owns step 4 and what comes a
 - Push with `uv run python -m flagpilot.push [--branch main] [--apply --approved-by NAME]` (dry-run by default). It logs success only if `git ls-remote origin refs/heads/<branch>` equals local HEAD.
 - Why: on 2026-11-26 a push of about 1.1 MB failed with `RPC failed; HTTP 400`, then printed `Everything up-to-date`; the `set -e` script carried on and logged success, with `origin/main` unchanged. A retry with `-c http.postBuffer=10485760` succeeded [ran].
 - Extra provisioning targets come from `[targets.<name>]` in `flagpilot.toml` (`--target dress`); each sets its own variant key, value and user prefix [ran].
+
+### Fresh-clone test (2026-11-27, commit `84eaa05`)
+Setup: `gh repo clone` into a new temp directory, empty `HOME` (`env -i`), tools already installed on this Mac.
+- `uv sync` worked with uv 0.5.26 and left `uv.lock` unchanged. With `UV_PYTHON_PREFERENCE=only-managed`, uv downloaded Python 3.12.8 [ran].
+- `uv run pytest`: 187 passed with the `.env` placeholder, and again with a fake project in `flagsmith.json` and a fake `ser.` key. The one warning (`StarletteDeprecationWarning`) comes from `fastapi/testclient.py` [ran].
+- `flagpilot --help` and `recommend --help` worked [ran].
+- Logged out, `recommend`, `ship`, `cleanup`, `retire`, `provision` and `lifecycle` (all without `--apply`) failed with ``Error: not logged in`` / ``Run `flagsmith login`, or set FLAGSMITH_API_KEY for non-interactive use.`` [ran].
+- `flagsmith init --no-input` without credentials: `Error: no credentials found, and a browser login needs a TTY` [ran].
+- The simulator dry-run succeeds with no login and no server key, so it doesn't check setup [ran].
+- Demo shop with the placeholder key: `RuntimeError: FLAGSMITH_SERVER_KEY is missing or not a server-side key. Add it to .env.`, then `Application startup failed` [ran].
+- Without the Flagsmith CLI on `PATH`, `recommend` ends in a traceback: `FileNotFoundError: [Errno 2] No such file or directory: 'flagsmith'` [ran].
+- The repo was still private: anonymous requests for the repo page and PR #1 returned 404 [ran]. It must be public before submission.
+- Installer header at `https://get.flagsmith.com`: `curl -fsSL https://get.flagsmith.com | sh`, default `v2.0.0`, installs to `$HOME/.local/bin`. The script was fetched and read, not executed [ran].
+- `gh repo fork --help`: `upstream` becomes the default remote repository (help output) [ran].
+- Not tested: interactive `login` and `init`, any `--apply`, the server-key and fork flows, the slash commands.
 - `uv run python -m flagpilot.{provision,lifecycle,simulate} … --target {checkout,rehearsal}`: `--target` is required. Each target has its own user prefix (`sim-user`, `rehearsal-user`) because metric `565` counts every `purchase` event [ran: `rehearsal`; `checkout` tests only].
 
 ### Lifecycle

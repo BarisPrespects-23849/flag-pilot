@@ -1,0 +1,41 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(uv run flagpilot --help)",
+      "Bash(uv run flagpilot recommend *)"
+    ],
+    "ask": [
+      "Bash(*flagpilot*--ap*)",
+      "Bash(*flagpilot*--a)",
+      "Bash(*flagpilot*--a *)",
+      "Bash(*flagpilot*--conf*)",
+      "Bash(*flagsmith* -X*)",
+      "Bash(*flagsmith* --method*)",
+      "Bash(*flagsmith* --input*)",
+      "Bash(*flagsmith* -F*)",
+      "Bash(*flagsmith* -f*)",
+      "Bash(*flagsmith* --field*)",
+      "Bash(*flagsmith* --raw-field*)",
+      "Bash(*flagsmith* -iX*)",
+      "Bash(*flagsmith* -iF*)",
+      "Bash(*flagsmith* -if*)",
+      "Bash(*flagsmith* create*)",
+      "Bash(*flagsmith* update*)",
+      "Bash(*flagsmith* delete*)",
+      "Bash(*flagsmith* variant*)",
+      "Bash(*flagsmith* enable*)",
+      "Bash(*flagsmith* disable*)",
+      "Bash(*flagsmith* reorder*)",
+      "Bash(*flagsmith* clone*)",
+      "Bash(*flagsmith* environment* key*)",
+      "Bash(*flagsmith* --create-*)",
+      "Edit(/.claude/settings.json)",
+      "Edit(/.claude/settings.local.json)",
+      "Bash(*.claude/settings*)"
+    ],
+    "deny": [
+      "Bash(*flagsmith* auth token*)",
+      "Bash(*flagsmith* auth * token*)"
+    ]
+  }
+}

@@ -137,6 +137,14 @@ Setup: `gh repo clone` into a new temp directory, empty `HOME` (`env -i`), tools
 - Installer header at `https://get.flagsmith.com`: `curl -fsSL https://get.flagsmith.com | sh`, default `v2.0.0`, installs to `$HOME/.local/bin`. The script was fetched and read, not executed [ran].
 - `gh repo fork --help`: `upstream` becomes the default remote repository (help output) [ran].
 - Not tested: interactive `login` and `init`, any `--apply`, the server-key and fork flows, the slash commands.
+
+### Claude Code permission rules (`.claude/settings.json`, 2026-11-27, Claude Code 2.1.332)
+- Ask: flagpilot commands with `--apply` (and its abbreviations) or `--confirm`, Flagsmith CLI write calls, and edits to or commands naming the settings files. Deny: printing the auth token. Allow: `uv run flagpilot recommend …` and `--help`.
+- `uv run flagpilot recommend 570 --json` ran and returned the card data [ran].
+- A permission prompt appeared, and was denied, for `flagpilot retire does-not-exist --apply --confirm x`, `flagsmith feature delete does-not-exist --no-input` and an edit to `.claude/settings.json` [ran].
+- The session's permission mode wasn't recorded. That ask rules still prompt in auto mode comes from <https://code.claude.com/docs/en/permissions>, not from a test.
+- The rules match text. A flag split by quotes, a name held in a variable, `curl` or a script isn't caught (wildcard matching simulated with a script). The docs say these rules aren't a security boundary.
+- Python's argument parser accepts `--appl` as `--apply`, so the rules match the shorter forms too [ran].
 - `uv run python -m flagpilot.{provision,lifecycle,simulate} … --target {checkout,rehearsal}`: `--target` is required. Each target has its own user prefix (`sim-user`, `rehearsal-user`) because metric `565` counts every `purchase` event [ran: `rehearsal`; `checkout` tests only].
 
 ### Lifecycle

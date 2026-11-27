@@ -191,6 +191,7 @@ marked for the flag. Mentions in tooling, docs and fixtures are listed and left 
 
 - **Dry-run by default.** Provisioning, start, simulator, `ship`, `cleanup` and `retire` change nothing without `--apply`.
 - **Typed-name approval.** `ship --apply` asks for the experiment name, or takes `--confirm "<name>"`.
+- **Two human checks.** Irreversible commands need a human twice: Flag Pilot's typed-name check, and a Claude Code permission prompt on `--apply` that auto mode can't skip (`.claude/settings.json`). Direct write calls through the Flagsmith CLI also prompt, and so do edits to these settings. The rules match command text and file paths, so they cover the usual invocations, not a disguised command or another tool such as `curl`. Running `flagpilot` directly in your own terminal is your own approval.
 - **`--expect-winner`.** Required with `--confirm`. If the winner changed since the dry-run, `ship` refuses.
 - **Fresh checks.** `ship` recomputes the verdict, then rereads the status just before the call.
 - **Verified rollout.** It polls 10 sample identities until all get the winner and the experiment is `completed`; otherwise it reports `NOT VERIFIED`.
@@ -301,7 +302,6 @@ It needs the server key, and it reads `checkout_button` only until that flag's c
 - **One metric shape.** Anything other than a single occurrence / up / increase metric is reported as `KEEP_RUNNING`.
 - **Shipping `control` is untested.** Only the variant decision has been run against Flagsmith.
 - **Undocumented endpoint.** `complete/` is in Flagsmith's API spec but not its docs.
-- **Typed name is a string check.** The code can't tell who typed `--confirm`. `/ship-winner` instructs the agent to pass only your own reply.
 - **Verification is a sample.** 10 identities, in the one environment in `flagsmith.json`. Rollout took about 15 seconds in the smoke test.
 - **One metric for provisioning.** Every target shares one `purchase` metric. `checkout` and `rehearsal` are set in `flagpilot/config.py`; more targets go in `flagpilot.toml` under `[targets.<name>]`.
 - **The demo flag gets cleaned up.** After the demo, the checkout_button cleanup PR will be merged, so demo/app.py will no longer read the flag. The rehearsal (flagpilot-dress, PR #1) shows the full flow; to try it yourself, use your own flag and a `--target` in flagpilot.toml.

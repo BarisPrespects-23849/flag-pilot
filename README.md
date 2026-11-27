@@ -309,5 +309,4 @@ It needs the server key, and it reads `checkout_button` only until that flag's c
 
 ## More
 
-- [`docs/DEMO.md`](docs/DEMO.md): the 2-minute demo script.
 - [`NOTES.md`](NOTES.md): verified commands, endpoints, payloads and constraints.

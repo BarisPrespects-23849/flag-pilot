@@ -6,3 +6,6 @@ audit.jsonl
 .flagpilot_state.json
 __pycache__/
 .venv/
+private/
+flagsmith.env
+.claude/settings.local.json

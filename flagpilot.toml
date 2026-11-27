@@ -18,6 +18,15 @@ user_prefix = "dress-user"
 variant_key = "new"
 variant_value = "new"
 
+[targets.refuse]
+flag = "flagpilot-refuse"
+experiment = "flagpilot-refuse"
+hypothesis = "Refusal demo: too few simulated users for the ship rules to pass."
+description = "Throwaway flag to show flagpilot ship refusing. Simulated users only."
+user_prefix = "refuse-user"
+variant_key = "new"
+variant_value = "new"
+
 [cleanup]
 app_paths = ["demo"]           # application code: scanned, rewritten, must end with 0 references
 test_paths = ["tests"]         # files marked pytest.mark.flag("<flag>") are deleted with the flag

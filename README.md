@@ -10,6 +10,32 @@ It is a command-line tool, `flagpilot`, with an agent layer on top: two Claude C
 Built for Flagsmith Track 2, *AI Agents and Feature Flags*. Flagsmith's setup prompt gets an
 experiment running; Flag Pilot takes it from there.
 
+## How we use Flagsmith (30 seconds)
+
+- **Multivariate flag** `checkout_button` with a keyed variant (`buy_now`) next to `control`.
+- **Experiments API:** create, start, read `results/` and `exposures/`, and `complete/` to end
+  the experiment and roll out the winner.
+- **CLI v2:** `feature` (create, variant, get), `evaluate`, `feature update --archive`, and
+  `flagsmith api` for every endpoint.
+- **Python SDK:** `get_experiment_flag` serves the variant and records the exposure;
+  `track_event` records the conversion.
+- **Flagsmith Cloud** with the managed warehouse, which computes the results.
+
+Details: [How Flagsmith is used](#how-flagsmith-is-used).
+
+## Quick start
+
+```bash
+git clone https://github.com/BarisPrespects-23849/flag-pilot && cd flag-pilot
+uv sync
+uv run pytest
+flagsmith login
+flagsmith init
+cp -n .env.example .env   # then set FLAGSMITH_SERVER_KEY
+```
+
+Requirements, the fork for `cleanup`, and running an experiment: [Quickstart](#quickstart).
+
 ## Why it's new
 
 In our smoke test, Flagsmith's `complete/` call ended an experiment that had **no data**: no

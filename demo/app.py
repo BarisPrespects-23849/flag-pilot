@@ -35,11 +35,7 @@ def make_client() -> Flagsmith:
 
 
 def checkout_label(client: Flagsmith, user_id: str) -> str:
-    # Identifies the user, resolves the flag and records the exposure.
-    flag = client.get_experiment_flag("checkout_button", identifier=user_id)
-    if flag.enabled and flag.value == "buy_now":
-        return "Buy now"
-    return "Proceed to checkout"
+    return "Buy now"
 
 
 def create_app(client_factory: Callable[[], Flagsmith] = make_client) -> FastAPI:

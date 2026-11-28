@@ -27,6 +27,15 @@ user_prefix = "refuse-user"
 variant_key = "new"
 variant_value = "new"
 
+[targets.live]
+flag = "flagpilot-live"
+experiment = "flagpilot-live"
+hypothesis = "Live demo of the full chain on a throwaway flag, with simulated users."
+description = "Throwaway flag for the live Flag Pilot demo. Retire after the cleanup PR."
+user_prefix = "live-user"
+variant_key = "new"
+variant_value = "new"
+
 [cleanup]
 app_paths = ["demo"]           # application code: scanned, rewritten, must end with 0 references
 test_paths = ["tests"]         # files marked pytest.mark.flag("<flag>") are deleted with the flag

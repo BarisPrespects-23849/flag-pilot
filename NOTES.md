@@ -165,6 +165,12 @@ Flag `flagpilot-live` (`308214`), variant `new` (`38665`), experiment `1715`, me
 - Batch 2: 600 more simulated users, same rates, new identifiers (`--prefix live-user-b`, `live-user-b-00001…00600`, seed 1). The `live` target accepted the prefix with no config change, since it starts with `live-user`. Delivered: control 306 / 38, `new` 294 / 48, 0 SDK warnings [ran].
 - Results refreshed at 14:53:21 UTC, after the 5-minute limit, matched both batches exactly: control 610 / 68 (11.1%), `new` 590 / 86 (14.6%) [ran].
 - `recommend 1715`: still `KEEP_RUNNING`. Only `chance_to_win` failed (93.9%; lift +31%, interval −8% to +70%); SRM p=0.564 (flagpilot). No further batch was sent [ran].
+- Cap: before batch 3, and after batches 1 and 2 had both returned `KEEP_RUNNING`, the total was capped at 1,800 simulated users (three batches of 600), with no more traffic whatever the verdict.
+- Batch 3: 600 more simulated users, same rates, new identifiers (`--prefix live-user-c`, `live-user-c-00001…00600`, seed 1). Delivered: control 304 / 27, `new` 296 / 41, 0 SDK warnings [ran].
+- Results refreshed at 14:59:29 UTC, after the 5-minute limit, matched all three batches exactly: control 914 / 95 (10.4%), `new` 886 / 127 (14.3%) [ran].
+- `recommend 1715`: `SHIP_VARIANT`. All 8 rules pass: chance to win 98.5%, lift +38% (interval +4% to +72%), SRM p=0.509 (flagpilot). `ship` would call `complete/` with `rollout_variant: 38665` [ran].
+- Results were checked after each batch (three looks), and traffic stopped once the rule passed. Each extra look raises the chance that a 95% threshold passes by luck, and the gates don't correct for it.
+- Not shipped, cleaned up or retired: left `running` for the on-camera demo.
 
 ### Lifecycle
 

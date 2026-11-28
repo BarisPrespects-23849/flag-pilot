@@ -156,6 +156,16 @@ Flag `flagpilot-refuse` (`306811`), variant `new` (`37984`), experiment `1194`, 
 - Left running on purpose. Compare §6.3: `complete/` accepted experiment `576` with no traffic.
 - `uv run python -m flagpilot.{provision,lifecycle,simulate} … --target {checkout,rehearsal}`: `--target` is required. Each target has its own user prefix (`sim-user`, `rehearsal-user`) because metric `565` counts every `purchase` event [ran: `rehearsal`; `checkout` tests only].
 
+### Live demo setup (2026-11-28, Development)
+Flag `flagpilot-live` (`308214`), variant `new` (`38665`), experiment `1715`, metric `565`, 600 SIMULATED users `live-user-*` (rates 0.10 / 0.16, seed 1). Target `live` in `flagpilot.toml`; `demo/live.py` and `tests/test_live_flag.py` pushed in `93cc7e5` [ran].
+- Every step had a dry-run, then `--apply`; the start returned `status: running` [ran].
+- Delivered: control 304 exposed / 30 converted, `new` 296 / 38, 0 SDK warnings. Results refreshed about 10 s later matched exactly [ran].
+- `recommend 1715`: `KEEP_RUNNING`. Only `chance_to_win` failed (84.2%; lift +30%, interval −29% to +89%); SRM p=0.744 (flagpilot) [ran].
+- The same rates and seed gave a smaller gap than on `592` and `626`. The identifiers differ, so each user's draws differ too: the seed does not make the outcome repeatable across targets.
+- Batch 2: 600 more simulated users, same rates, new identifiers (`--prefix live-user-b`, `live-user-b-00001…00600`, seed 1). The `live` target accepted the prefix with no config change, since it starts with `live-user`. Delivered: control 306 / 38, `new` 294 / 48, 0 SDK warnings [ran].
+- Results refreshed at 14:53:21 UTC, after the 5-minute limit, matched both batches exactly: control 610 / 68 (11.1%), `new` 590 / 86 (14.6%) [ran].
+- `recommend 1715`: still `KEEP_RUNNING`. Only `chance_to_win` failed (93.9%; lift +31%, interval −8% to +70%); SRM p=0.564 (flagpilot). No further batch was sent [ran].
+
 ### Lifecycle
 
 | Step | Command / endpoint | Source |

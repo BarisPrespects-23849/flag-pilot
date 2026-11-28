@@ -325,7 +325,7 @@ It needs the server key, and it reads `checkout_button` only until that flag's c
 - **Archiving doesn't stop evaluation.** About a minute after archiving, `flagsmith evaluate` still returned the archived flags' values.
 - **One environment.** `retire` checks experiments in the environment in `flagsmith.json`, but archiving affects the whole project.
 - **Traffic is simulated.** The users and purchase rates are invented in `flagpilot/simulate.py`. Flagsmith assigns arms and computes the results.
-- **The live demo experiment received three batches of simulated traffic** (1,800 users, same rates, new identifiers each time) because Flag Pilot said KEEP_RUNNING until the evidence was enough.
+- **The live demo experiment received three batches of simulated traffic** (1,800 users, same rates, new identifiers each time; results were checked after each batch) because Flag Pilot said KEEP_RUNNING until the evidence was enough.
 - **Rate limits.** Results can be refreshed once every 5 minutes, and exposure refresh is limited too. `recommend --refresh` skips a limited step and shows the existing data.
 - **One metric shape.** Anything other than a single occurrence / up / increase metric is reported as `KEEP_RUNNING`.
 - **Shipping `control` is untested.** Only the variant decision has been run against Flagsmith.
